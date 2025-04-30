@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":["file:///home/user/studio/src/app/analytics/layout.tsx"],"sourcesContent":["import type { Metadata } from 'next';\n\nexport const metadata: Metadata = {\n  title: 'Workout Analytics - Workout Warrior',\n  description: 'View your workout progress and analytics.',\n};\n\nexport default function AnalyticsLayout({\n  children,\n}: {\n  children: React.ReactNode;\n}) {\n  return (\n    // You can add specific layout structure for the analytics section if needed\n    // For now, it just passes children through.\n    <section>{children}</section>\n  );\n}\n"],"names":[],"mappings":";;;;;;AAEO,MAAM,WAAqB;IAChC,OAAO;IACP,aAAa;AACf;AAEe,SAAS,gBAAgB,EACtC,QAAQ,EAGT;IACC,OACE,4EAA4E;IAC5E,4CAA4C;kBAC5C,8OAAC;kBAAS;;;;;;AAEd","debugId":null}}]
+}
