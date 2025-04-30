@@ -14,7 +14,8 @@ import { fillMissedDays } from '@/app/actions/fillMissedDays';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { addDays, differenceInDays, format, parseISO, startOfDay, subDays, getDay } from 'date-fns';
+// Removed unnecessary date-fns imports as startOfWeek handles it
+import { addDays, format, parseISO, startOfDay, getDay, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
 
 const daysOfWeek = [
   'Monday',
@@ -120,14 +121,14 @@ export function WorkoutTracker() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = React.useState<{ [day: string]: boolean }>({});
   const saveTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const [loadedDataDates, setLoadedDataDates] = React.useState<{ [day: string]: string | null }>({}); // Track loaded date per day of week
+  const [currentWeekStart, setCurrentWeekStart] = React.useState<Date>(() => startOfWeek(new Date(), { weekStartsOn: 1 })); // Monday as start
 
-  // Function to determine the date corresponding to a selected day of the week tab
-  const getDateForDayOfWeek = (targetDayOfWeek: string, today: Date = new Date()): Date => {
-      const todayDayIndex = (getDay(today) + 6) % 7; // 0 = Monday
-      const targetDayIndex = daysOfWeek.indexOf(targetDayOfWeek);
-      const difference = targetDayIndex - todayDayIndex;
-      return addDays(startOfDay(today), difference);
-  };
+   // Function to determine the date corresponding to a selected day of the week tab within the *current* week
+   const getDateForDayOfWeek = (targetDayOfWeek: string): Date => {
+     const targetDayIndex = daysOfWeek.indexOf(targetDayOfWeek); // 0 for Monday, 6 for Sunday
+     // Add the index (0-6) to the start of the current week (which is always a Monday)
+     return addDays(currentWeekStart, targetDayIndex);
+   };
 
 
   // Load data on mount and handle initial setup
@@ -137,6 +138,8 @@ export function WorkoutTracker() {
         const today = new Date();
         const todayDayIndex = (getDay(today) + 6) % 7; // 0 = Monday
         const currentDayOfWeek = daysOfWeek[todayDayIndex];
+        const weekStartsOnMonday = startOfWeek(today, { weekStartsOn: 1 });
+        setCurrentWeekStart(weekStartsOnMonday); // Set current week start date
 
         console.log("Loading workout data...");
         // Load all historical data
@@ -163,6 +166,7 @@ export function WorkoutTracker() {
         // Fill missed days based on the absolute last recorded date found
         // This should run BEFORE populating the current week's state
         if (lastRecordDate) {
+             console.log(`Checking for missed days between ${format(addDays(lastRecordDate, 1), 'yyyy-MM-dd')} and ${format(startOfDay(today), 'yyyy-MM-dd')}`);
             const filledMissed = await fillMissedDays(lastRecordDate, today);
             if (filledMissed) {
                 // Reload data if missed days were filled, so we have the latest state
@@ -182,13 +186,13 @@ export function WorkoutTracker() {
         }
 
 
-        // Populate reps state for the current week based on the new rules
-        daysOfWeek.forEach((day, index) => {
-            const dateForThisDay = getDateForDayOfWeek(day, today);
-            const dateString = format(dateForThisDay, 'yyyy-MM-dd');
-            const dayPlan = workoutPlan[day as keyof typeof workoutPlan];
-            const isPastDay = index < todayDayIndex;
-            const isWorkoutDay = dayPlan && !dayPlan.restDay && !dayPlan.recovery;
+       // Populate reps state for the current week based on the new rules
+       daysOfWeek.forEach((day, index) => {
+           const dateForThisDay = getDateForDayOfWeek(day); // Use the corrected helper
+           const dateString = format(dateForThisDay, 'yyyy-MM-dd');
+           const dayPlan = workoutPlan[day as keyof typeof workoutPlan];
+           const isPastDay = dateForThisDay < startOfDay(today);
+           const isWorkoutDay = dayPlan && !dayPlan.restDay && !dayPlan.recovery;
 
             if (loadedData && loadedData[dateString]) {
                 // Data exists for this day in the current week's date range - always load it
@@ -197,29 +201,20 @@ export function WorkoutTracker() {
                 initialLoadedDates[day] = dateString;
                 console.log(`Loaded existing data for ${day} (${dateString})`);
             } else {
-                // No data exists for this day's date
+                // No data exists for this day's date for the current week
                  initialLastSaved[day] = null;
                  initialLoadedDates[day] = null;
 
-                if (isPastDay) {
-                     // Past day with no record
-                    if (isWorkoutDay) {
-                        // It's a past *workout* day, generate zero reps
-                        initialReps[day] = generateZeroRepsForDay(dayPlan);
-                        console.log(`No record for past workout day ${day} (${dateString}). Generated zero reps.`);
-                    } else {
-                        // It's a past *rest/recovery* day, generate default empty state
-                        initialReps[day] = generateDefaultRepsForDay(dayPlan);
-                        console.log(`No record for past rest/recovery day ${day} (${dateString}). Generated default empty state.`);
-                    }
-                } else {
-                    // Today or future day with no record, generate default empty state
-                    initialReps[day] = generateDefaultRepsForDay(dayPlan);
-                    console.log(`No record for current/future day ${day} (${dateString}). Generated default empty state.`);
-                }
+                 // Always generate default empty state if no record found for the current week's date
+                 initialReps[day] = generateDefaultRepsForDay(dayPlan);
+                 console.log(`No record for ${day} (${dateString}). Generated default empty state.`);
+
+                 // Note: fillMissedDays already handled inserting zero reps for past workout days
+                 // based on the *last recorded date overall*, not just within the current week.
             }
             initialUnsavedChanges[day] = false; // Start with no unsaved changes for any day
         });
+
 
         setReps(initialReps);
         setHasUnsavedChanges(initialUnsavedChanges);
@@ -245,7 +240,7 @@ export function WorkoutTracker() {
         if (!hasUnsavedChanges[dayToSave]) return; // Don't save if nothing changed for this specific day
 
        setIsSaving(true);
-       const dateToSave = getDateForDayOfWeek(dayToSave); // Determine the date for the active tab
+       const dateToSave = getDateForDayOfWeek(dayToSave); // Determine the correct date for the active tab
        const dayRepsToSave = reps[dayToSave];
 
        if (!dayRepsToSave) {
@@ -272,7 +267,7 @@ export function WorkoutTracker() {
          });
        }
      }, 1500); // 1.5-second debounce timer
-   }, [activeTab, reps, hasUnsavedChanges, toast]); // Include necessary dependencies
+   }, [activeTab, reps, hasUnsavedChanges, toast, getDateForDayOfWeek]); // Include getDateForDayOfWeek
 
 
   const handleRepChange = (day: string, workoutType: string, exerciseIdentifier: string, roundIndex: number, value: number | string) => {
@@ -319,7 +314,7 @@ export function WorkoutTracker() {
        }
 
        setIsSaving(true);
-       const dateToSave = getDateForDayOfWeek(dayToSave); // Determine the date for the active tab
+       const dateToSave = getDateForDayOfWeek(dayToSave); // Determine the correct date for the active tab
        const dayRepsToSave = reps[dayToSave];
 
 
@@ -429,7 +424,8 @@ export function WorkoutTracker() {
              <DayWorkout
                 day={day} // Pass the day this content is for
                 plan={workoutPlan[day as keyof typeof workoutPlan]}
-                reps={reps[day] || {}} // Pass the reps specific to this day
+                // Ensure reps[day] exists before passing, fallback to empty object if not
+                reps={reps[day] || generateDefaultRepsForDay(workoutPlan[day as keyof typeof workoutPlan])}
                 onRepChange={handleRepChange} // Pass the single handler
               />
           </TabsContent>
@@ -439,3 +435,6 @@ export function WorkoutTracker() {
   );
 }
     
+
+
+            
