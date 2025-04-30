@@ -45,10 +45,11 @@ function generateDefaultRepsForDay(dayPlan: WorkoutDayPlan | undefined): RepsSta
                     }
                 });
             } else { // Single exercise
-                defaultDayReps[workoutType]![baseIdentifier] = {};
+                 const uniqueId = baseIdentifier; // For single exercises, baseIdentifier is the uniqueId
+                defaultDayReps[workoutType]![uniqueId] = {};
                  const exRounds = (item as Exercise).rounds || 1;
                 for (let i = 0; i < exRounds; i++) {
-                    defaultDayReps[workoutType]![baseIdentifier]![i] = ''; // Default empty string
+                    defaultDayReps[workoutType]![uniqueId]![i] = ''; // Default empty string
                 }
             }
         });
@@ -57,10 +58,11 @@ function generateDefaultRepsForDay(dayPlan: WorkoutDayPlan | undefined): RepsSta
     processWorkoutItems(dayPlan.morningGym, 'morningGym');
     processWorkoutItems(dayPlan.eveningHome, 'eveningHome');
     if (dayPlan.optionalFinisher) {
+         const uniqueId = 'optionalFinisher';
         const finisherRounds = dayPlan.optionalFinisher.rounds || 1;
-        defaultDayReps.morningGym!['optionalFinisher'] = {};
+        defaultDayReps.morningGym![uniqueId] = {};
          for (let i = 0; i < finisherRounds; i++) {
-            defaultDayReps.morningGym!['optionalFinisher']![i] = ''; // Default empty string
+            defaultDayReps.morningGym![uniqueId]![i] = ''; // Default empty string
         }
     }
 
@@ -156,7 +158,7 @@ export function WorkoutTracker() {
             const dateForThisDay = addDays(weekStartsOnMonday, daysOfWeek.indexOf(day)); // Calculate date based on THIS week's Monday
             const dateString = format(dateForThisDay, 'yyyy-MM-dd');
             const dayPlan = workoutPlan[day as keyof typeof workoutPlan];
-            const isPastOrToday = dateForThisDay <= startOfDay(today);
+            const isPastOrToday = startOfDay(dateForThisDay) <= startOfDay(today); // Compare start of day
 
             if (loadedData && loadedData[dateString] && isPastOrToday) {
                 // Data exists for this past/today day in the current week - load it
@@ -190,8 +192,8 @@ export function WorkoutTracker() {
     };
 
     fetchData();
-   // No longer using getDateForDayOfWeek in dependency array
-  }, []); // Run only once on mount
+  // Run only once on mount - removed dependencies causing infinite loop
+  }, []);
 
 
   const handleRepChange = (day: string, workoutType: string, exerciseIdentifier: string, roundIndex: number, value: number | string) => {
@@ -337,11 +339,11 @@ export function WorkoutTracker() {
         ))}
       </Tabs>
 
-       {/* Floating Action Buttons - applied fixed positioning and z-index */}
-       <div className="fixed bottom-4 right-4 flex flex-col gap-3 z-50">
+       {/* Floating Action Buttons - Arranged horizontally at the bottom right */}
+       <div className="fixed bottom-4 right-4 flex gap-3 z-50">
             <Button
                 variant="default"
-                size="lg" // Make button larger
+                size="lg" // Keep button large
                 className="rounded-full shadow-lg h-14 w-14 p-0 flex items-center justify-center" // Style as FAB
                 onClick={handleManualSave}
                 disabled={isSaving || !currentDayHasUnsavedChanges}
@@ -352,7 +354,7 @@ export function WorkoutTracker() {
             <Link href="/analytics" passHref>
                  <Button
                     variant="secondary"
-                    size="lg" // Make button larger
+                    size="lg" // Keep button large
                     className="rounded-full shadow-lg h-14 w-14 p-0 flex items-center justify-center" // Style as FAB
                     aria-label="View Analytics"
                   >
@@ -363,3 +365,5 @@ export function WorkoutTracker() {
     </div>
   );
 }
+
+    
