@@ -10,6 +10,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { CalendarDays, BarChartBig, Save, Loader2 } from 'lucide-react';
 import { saveWorkoutData } from '@/app/actions/saveWorkoutData';
 import { loadWorkoutData, type LoadedWorkoutData } from '@/app/actions/loadWorkoutData';
+import { fillMissedDays } from '@/app/actions/fillMissedDays'; // Import fillMissedDays
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
