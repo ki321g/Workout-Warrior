@@ -79,7 +79,6 @@ export function WorkoutTracker() {
   const [currentWeekStart, setCurrentWeekStart] = React.useState<Date>(() => startOfWeek(new Date(), { weekStartsOn: 1 })); // Monday as start
 
    // Function to determine the date corresponding to a selected day of the week tab within the *current* week
-   // No longer using useCallback here as it caused issues with the useEffect dependency loop
    const getDateForDayOfWeek = (targetDayOfWeek: string): Date => {
      const targetDayIndex = daysOfWeek.indexOf(targetDayOfWeek); // 0 for Monday, 6 for Sunday
      // Add the index (0-6) to the start of the current week (which is always a Monday)
@@ -123,33 +122,34 @@ export function WorkoutTracker() {
              });
         }
 
-        // Proceed with filling/loading logic only if some data was potentially found or needs init
+         // Proceed with filling/loading logic only if some data was potentially found or needs init
         // Fill missed days based on the absolute last recorded date found
-       if (lastRecordDate) {
-           const dayAfterLastRecord = addDays(lastRecordDate, 1);
-           const dayBeforeToday = subDays(startOfDay(today),1); // Use start of day for accurate comparison
+        if (lastRecordDate) {
+            const dayAfterLastRecord = addDays(lastRecordDate, 1);
+            const dayBeforeToday = subDays(startOfDay(today),1); // Use start of day for accurate comparison
 
-           // Only fill if there's a gap *before* today
-           if (dayAfterLastRecord <= dayBeforeToday) {
-                console.log(`Checking for missed days between ${format(dayAfterLastRecord, 'yyyy-MM-dd')} and ${format(dayBeforeToday, 'yyyy-MM-dd')}`);
-                const filledMissed = await fillMissedDays(lastRecordDate, today);
-                if (filledMissed) {
-                    console.log("Missed days were filled. Reloading data...");
-                    loadedData = await loadWorkoutData(); // Reload to include filled data
-                    if (loadedData && Object.keys(loadedData).length > 0) {
-                        const sortedDates = Object.keys(loadedData).sort((a, b) => b.localeCompare(a));
-                         if (sortedDates.length > 0) {
-                            lastRecordDate = parseISO(sortedDates[0]); // Update last record date again
-                            console.log(`Updated last recorded date after fill: ${format(lastRecordDate, 'yyyy-MM-dd')}`);
-                        }
-                    }
-                 }
-            } else {
-                 console.log("No gap found to fill between last record and today.");
-            }
-        } else {
-            console.log("No last record date, skipping fillMissedDays check.");
-        }
+            // Only fill if there's a gap *before* today
+            if (dayAfterLastRecord <= dayBeforeToday) {
+                 console.log(`Checking for missed days between ${format(dayAfterLastRecord, 'yyyy-MM-dd')} and ${format(dayBeforeToday, 'yyyy-MM-dd')}`);
+                 const filledMissed = await fillMissedDays(lastRecordDate, today);
+                 if (filledMissed) {
+                     console.log("Missed days were filled. Reloading data...");
+                     loadedData = await loadWorkoutData(); // Reload to include filled data
+                     if (loadedData && Object.keys(loadedData).length > 0) {
+                         const sortedDates = Object.keys(loadedData).sort((a, b) => b.localeCompare(a));
+                          if (sortedDates.length > 0) {
+                             lastRecordDate = parseISO(sortedDates[0]); // Update last record date again
+                             console.log(`Updated last recorded date after fill: ${format(lastRecordDate, 'yyyy-MM-dd')}`);
+                         }
+                     }
+                  }
+             } else {
+                  console.log("No gap found to fill between last record and today.");
+             }
+         } else {
+             console.log("No last record date, skipping fillMissedDays check.");
+         }
+
 
          // Populate reps state for the current week based on loaded data or defaults
         daysOfWeek.forEach((day) => {
@@ -190,7 +190,7 @@ export function WorkoutTracker() {
     };
 
     fetchData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   // No longer using getDateForDayOfWeek in dependency array
   }, []); // Run only once on mount
 
 
@@ -287,7 +287,8 @@ export function WorkoutTracker() {
 
 
   return (
-    <div className="container mx-auto px-2 sm:px-4 py-8 max-w-4xl pb-24"> {/* Added padding-bottom */}
+    // Increased padding-bottom to pb-24
+    <div className="container mx-auto px-2 sm:px-4 py-8 max-w-4xl pb-24">
       <header className="text-center mb-6">
         <h1 className="text-3xl sm:text-4xl font-bold text-primary mb-1">Workout Warrior</h1>
         <p className="text-base sm:text-lg text-muted-foreground">Track your weekly progress</p>
@@ -336,7 +337,7 @@ export function WorkoutTracker() {
         ))}
       </Tabs>
 
-       {/* Floating Action Buttons */}
+       {/* Floating Action Buttons - applied fixed positioning and z-index */}
        <div className="fixed bottom-4 right-4 flex flex-col gap-3 z-50">
             <Button
                 variant="default"
@@ -362,5 +363,3 @@ export function WorkoutTracker() {
     </div>
   );
 }
-
-    
