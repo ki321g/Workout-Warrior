@@ -1,11 +1,14 @@
+
 import type * as React from 'react';
-import { Barbell, Dumbbell, Kettlebell, Heart, PersonStanding, GitBranchPlus, Activity, Footprints, Bike, RowingMachine, TrendingUp } from 'lucide-react'; // Added RowingMachine, TrendingUp
+// Replaced Barbell with Weight as Barbell is not available in lucide-react
+// Replaced Kettlebell with Activity as Kettlebell is not available in lucide-react
+import { Weight, Dumbbell, Heart, PersonStanding, GitBranchPlus, Activity, Footprints, Bike, RowingMachine, TrendingUp } from 'lucide-react'; // Added RowingMachine, TrendingUp
 
 export interface Exercise {
   name: string;
   reps: string; // e.g., "8-10 reps", "10 reps", "30 seconds"
   rounds?: number; // Number of rounds for this specific exercise (used in non-supersets sometimes)
-  icon?: React.ElementType; // Changed from React.ReactNode to ElementType
+  icon?: React.ElementType; // Icon component type
 }
 
 export interface Superset {
@@ -35,21 +38,21 @@ export const workoutPlan: { [key: string]: WorkoutDay } = {
     morningGym: {
       supersetA: {
         exercises: [
-          { name: 'Barbell Back Squat', reps: '8-10 reps', icon: Barbell },
+          { name: 'Barbell Back Squat', reps: '8-10 reps', icon: Weight }, // Use Weight icon
           { name: 'Push-Ups or Dumbbell Bench Press', reps: '10-12 reps', icon: Dumbbell },
         ],
         rounds: 3,
       },
       supersetB: {
         exercises: [
-          { name: 'Romanian Deadlift', reps: '10 reps', icon: Barbell },
+          { name: 'Romanian Deadlift', reps: '10 reps', icon: Weight }, // Use Weight icon
           { name: 'Overhead Dumbbell Press', reps: '10-12 reps', icon: Dumbbell },
         ],
         rounds: 3,
       },
     },
      optionalFinisher: {
-        name: 'Kettlebell Swings + Air Squats', reps: '15 + 15 reps', rounds: 3, icon: Kettlebell
+        name: 'Kettlebell Swings + Air Squats', reps: '15 + 15 reps', rounds: 3, icon: Activity // Use Activity icon as fallback
     },
     cardio: '30-45 min brisk walk or 15-20 min spin bike',
     eveningHome: {
@@ -62,7 +65,7 @@ export const workoutPlan: { [key: string]: WorkoutDay } = {
     morningGym: {
       supersetA: {
         exercises: [
-          { name: 'Deadlift', reps: '6-8 reps', icon: Barbell },
+          { name: 'Deadlift', reps: '6-8 reps', icon: Weight }, // Use Weight icon
           { name: 'Dumbbell Bent-Over Rows', reps: '10 reps', icon: Dumbbell },
         ],
         rounds: 3,
@@ -93,21 +96,21 @@ export const workoutPlan: { [key: string]: WorkoutDay } = {
     morningGym: {
       supersetA: {
         exercises: [
-          { name: 'Barbell Back Squat', reps: '8-10 reps', icon: Barbell },
+          { name: 'Barbell Back Squat', reps: '8-10 reps', icon: Weight }, // Use Weight icon
           { name: 'Push-Ups or Dumbbell Bench Press', reps: '10-12 reps', icon: Dumbbell },
         ],
         rounds: 3,
       },
       supersetB: {
         exercises: [
-          { name: 'Romanian Deadlift', reps: '10 reps', icon: Barbell },
+          { name: 'Romanian Deadlift', reps: '10 reps', icon: Weight }, // Use Weight icon
           { name: 'Overhead Dumbbell Press', reps: '10-12 reps', icon: Dumbbell },
         ],
         rounds: 3,
       },
     },
      optionalFinisher: {
-        name: 'Kettlebell Swings + Air Squats', reps: '15 + 15 reps', rounds: 3, icon: Kettlebell
+        name: 'Kettlebell Swings + Air Squats', reps: '15 + 15 reps', rounds: 3, icon: Activity // Use Activity icon as fallback
     },
     cardio: '30-45 min brisk walk or 15-20 min spin bike',
     eveningHome: {
@@ -120,7 +123,7 @@ export const workoutPlan: { [key: string]: WorkoutDay } = {
     morningGym: {
       supersetA: {
         exercises: [
-          { name: 'Deadlift', reps: '6-8 reps', icon: Barbell },
+          { name: 'Deadlift', reps: '6-8 reps', icon: Weight }, // Use Weight icon
           { name: 'Dumbbell Bent-Over Rows', reps: '10 reps', icon: Dumbbell },
         ],
         rounds: 3,
@@ -153,4 +156,3 @@ export const workoutPlan: { [key: string]: WorkoutDay } = {
      cardio: 'Optional light walk or bike (part of recovery)',
   },
 };
-```
