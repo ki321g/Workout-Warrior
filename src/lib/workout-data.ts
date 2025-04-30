@@ -19,7 +19,8 @@ export interface Superset {
 // Workout type can be a single exercise or a superset
 export type WorkoutItem = Exercise | Superset;
 
-export interface WorkoutDay {
+// Structure for defining the plan for a single day
+export interface WorkoutDayPlan {
   morningGym?: {
     [key: string]: WorkoutItem; // e.g., supersetA, supersetB, finisher
   };
@@ -33,7 +34,7 @@ export interface WorkoutDay {
 }
 
 
-export const workoutPlan: { [key: string]: WorkoutDay } = {
+export const workoutPlan: { [key: string]: WorkoutDayPlan } = {
   Monday: {
     morningGym: {
       supersetA: {
