@@ -10,7 +10,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { CalendarDays, BarChartBig, Save, Loader2 } from 'lucide-react';
 import { saveWorkoutData } from '@/app/actions/saveWorkoutData';
 import { loadWorkoutData, type LoadedWorkoutData } from '@/app/actions/loadWorkoutData';
-import { fillMissedDays } from '@/app/actions/fillMissedDays'; // Import fillMissedDays
+import { fillMissedDays } from '@/app/actions/fillMissedDays';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -135,7 +135,7 @@ export function WorkoutTracker() {
     const fetchData = async () => {
         setIsLoading(true);
         const today = new Date();
-        const todayDayIndex = (getDay(today) + 6) % 7;
+        const todayDayIndex = (getDay(today) + 6) % 7; // 0 = Monday
         const currentDayOfWeek = daysOfWeek[todayDayIndex];
 
         console.log("Loading workout data...");
@@ -161,46 +161,62 @@ export function WorkoutTracker() {
         }
 
         // Fill missed days based on the absolute last recorded date found
+        // This should run BEFORE populating the current week's state
         if (lastRecordDate) {
             const filledMissed = await fillMissedDays(lastRecordDate, today);
             if (filledMissed) {
-                // Reload data if missed days were filled
+                // Reload data if missed days were filled, so we have the latest state
                 console.log("Missed days were filled. Reloading data...");
                 loadedData = await loadWorkoutData();
+                 // Update lastRecordDate after potentially filling gaps and reloading
+                 if (loadedData && Object.keys(loadedData).length > 0) {
+                    const sortedDates = Object.keys(loadedData).sort().reverse();
+                    if (sortedDates.length > 0) {
+                        lastRecordDate = parseISO(sortedDates[0]);
+                        console.log(`Updated last recorded date after fill: ${format(lastRecordDate, 'yyyy-MM-dd')}`);
+                    }
+                 }
             }
         } else {
              console.log("No last record date, skipping fillMissedDays check.");
         }
 
 
-        // Populate reps state for the current week
+        // Populate reps state for the current week based on the new rules
         daysOfWeek.forEach((day, index) => {
             const dateForThisDay = getDateForDayOfWeek(day, today);
             const dateString = format(dateForThisDay, 'yyyy-MM-dd');
+            const dayPlan = workoutPlan[day as keyof typeof workoutPlan];
+            const isPastDay = index < todayDayIndex;
+            const isWorkoutDay = dayPlan && !dayPlan.restDay && !dayPlan.recovery;
 
             if (loadedData && loadedData[dateString]) {
-                // Data exists for this day in the current week
+                // Data exists for this day in the current week's date range - always load it
                 initialReps[day] = loadedData[dateString].reps;
                 initialLastSaved[day] = loadedData[dateString].lastUpdatedAt;
                 initialLoadedDates[day] = dateString;
-                console.log(`Loaded data for ${day} (${dateString})`);
+                console.log(`Loaded existing data for ${day} (${dateString})`);
             } else {
-                 // No data for this day in the current week
-                 const dayPlan = workoutPlan[day as keyof typeof workoutPlan];
-                 // If it's a past day in the current week and no record exists,
-                 // and we didn't just fill it via fillMissedDays, generate zero reps.
-                 // Otherwise (today, future, or rest/recovery days), generate default empty reps.
-                 if (index < todayDayIndex && dayPlan && !dayPlan.restDay && !dayPlan.recovery) {
-                      // It's a past workout day with no record
-                      initialReps[day] = generateZeroRepsForDay(dayPlan);
-                      console.log(`No record for past workout day ${day} (${dateString}). Generated zero reps.`);
-                  } else {
-                      // It's today, a future day, or a rest/recovery day
-                     initialReps[day] = generateDefaultRepsForDay(dayPlan);
-                     console.log(`No record for day ${day} (${dateString}). Generated default empty reps.`);
-                 }
-                initialLastSaved[day] = null;
-                initialLoadedDates[day] = null;
+                // No data exists for this day's date
+                 initialLastSaved[day] = null;
+                 initialLoadedDates[day] = null;
+
+                if (isPastDay) {
+                     // Past day with no record
+                    if (isWorkoutDay) {
+                        // It's a past *workout* day, generate zero reps
+                        initialReps[day] = generateZeroRepsForDay(dayPlan);
+                        console.log(`No record for past workout day ${day} (${dateString}). Generated zero reps.`);
+                    } else {
+                        // It's a past *rest/recovery* day, generate default empty state
+                        initialReps[day] = generateDefaultRepsForDay(dayPlan);
+                        console.log(`No record for past rest/recovery day ${day} (${dateString}). Generated default empty state.`);
+                    }
+                } else {
+                    // Today or future day with no record, generate default empty state
+                    initialReps[day] = generateDefaultRepsForDay(dayPlan);
+                    console.log(`No record for current/future day ${day} (${dateString}). Generated default empty state.`);
+                }
             }
             initialUnsavedChanges[day] = false; // Start with no unsaved changes for any day
         });
@@ -422,5 +438,4 @@ export function WorkoutTracker() {
     </div>
   );
 }
-
     
