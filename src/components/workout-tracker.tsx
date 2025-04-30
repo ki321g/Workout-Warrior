@@ -85,6 +85,7 @@ export function WorkoutTracker() {
      const targetDayIndex = daysOfWeek.indexOf(targetDayOfWeek); // 0 for Monday, 6 for Sunday
      // Add the index (0-6) to the start of the current week (which is always a Monday)
      // Use startOfDay to ensure consistency and remove time component influence
+     
      const calculatedDate = startOfDay(addDays(currentWeekStart, targetDayIndex));
      console.log(`[getDateForDayOfWeek] Target=${targetDayOfWeek}, Index=${targetDayIndex}, currentWeekStart=${format(currentWeekStart, 'yyyy-MM-dd EEE')}, Result Date=${format(calculatedDate, 'yyyy-MM-dd EEE')}`);
      return calculatedDate;
@@ -254,6 +255,8 @@ export function WorkoutTracker() {
        setIsSaving(true);
        const dateToSave = getDateForDayOfWeek(dayToSave); // Determine the correct date for the active tab using the updated function
        const dayRepsToSave = reps[dayToSave];
+       console.log(`[handleManualSave] Day to save: ${dayToSave}, Date to save: ${format(dateToSave, 'yyyy-MM-dd')}`);
+       console.log(`[handleManualSave] Day reps to save:`, dayRepsToSave);
 
 
        if (!dayRepsToSave) {

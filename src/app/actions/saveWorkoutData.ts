@@ -30,6 +30,7 @@ export async function saveWorkoutData(
   // Format the *provided* date as the document ID
   const dateString = format(date, 'yyyy-MM-dd');
   const docRef = doc(db, 'workoutRecords', MOCK_USER_ID, 'daily', dateString);
+  console.log(`Saving workout data for: ${dayOfWeek} (${dateString})`);
 
   try {
     const docSnap = await getDoc(docRef);
