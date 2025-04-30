@@ -1,4 +1,3 @@
-
  "use client";
 
 import * as React from 'react';
@@ -103,6 +102,7 @@ export function ExerciseCard({ baseIdentifier, exercise, repsData, onRepChange, 
 
    const handleInputChange = (uniqueId: string, roundIndex: number, event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
+    // Allow empty string or only digits
     if (value === '' || /^\d+$/.test(value)) {
        onRepChange(uniqueId, roundIndex, value);
     }
@@ -173,18 +173,19 @@ export function ExerciseCard({ baseIdentifier, exercise, repsData, onRepChange, 
                   </Button>
                    <Input
                     id={`${uniqueId}-round-${roundIndex}`}
-                    type="text"
-                     inputMode="numeric"
-                     pattern="[0-9]*"
+                    type="text" // Changed from number to text to allow empty string and better control
+                     inputMode="numeric" // Helps mobile keyboards show numeric pad
+                     pattern="[0-9]*" // HTML5 pattern validation
                     placeholder="Reps"
                     value={completedReps}
-                    onChange={(e) => handleInputChange(uniqueId, roundIndex, e)}
+                    onChange={(e) => handleInputChange(uniqueId, roundIndex, e)} // Added onChange handler
                     className={cn(
                       "w-full text-center h-9 px-1 text-base",
                       status === 'met' && 'border-green-500 focus-visible:ring-green-500',
                       // Show orange border only if below target AND not empty/0
                       status === 'below' && completedReps !== '' && completedReps !== 0 && 'border-orange-500 focus-visible:ring-orange-500',
                       status === 'above' && 'border-blue-500 focus-visible:ring-blue-500',
+                      // Hide browser default number input spinners
                       "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     )}
                   />
@@ -197,6 +198,7 @@ export function ExerciseCard({ baseIdentifier, exercise, repsData, onRepChange, 
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
+                   {/* Adjust icon position if needed based on input changes */}
                    <div className="absolute right-10 top-[26px] transform -translate-y-1/2 flex items-center pointer-events-none">
                        {status === 'met' && <CheckCircle className="h-4 w-4 text-green-500" />}
                        {/* Show warning icon only if below target AND not empty/0 */}
@@ -220,7 +222,7 @@ export function ExerciseCard({ baseIdentifier, exercise, repsData, onRepChange, 
                  {isOptional && <Badge variant="outline" className="ml-auto text-xs">Optional</Badge>}
             </CardTitle>
          )}
-          {!isSuperset && !isOptional && (
+          {!isSuperset && !isOptional && exercise && 'name' in exercise && (
              <CardTitle className="text-base sm:text-lg font-semibold flex items-center justify-between gap-2">
                   <span>{(exercise as Exercise).name}</span>
                   {/* Optional badge is handled below for non-superset optional */}
