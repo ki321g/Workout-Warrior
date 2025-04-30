@@ -139,8 +139,9 @@ export function ExerciseCard({ baseIdentifier, exercise, repsData, onRepChange, 
               width={100}
               height={100}
               className="rounded-md object-contain"
+               // Hide the image element if it fails to load (e.g., 404 Not Found)
                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-               unoptimized
+               unoptimized // Add unoptimized for GIFs
             />
           </div>
 
