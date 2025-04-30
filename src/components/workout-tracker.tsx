@@ -78,12 +78,13 @@ export function WorkoutTracker() {
   const [isSaving, setIsSaving] = React.useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = React.useState<{ [day: string]: boolean }>({});
   const [loadedDataDates, setLoadedDataDates] = React.useState<{ [day: string]: string | null }>({}); // Track loaded date per day of week
-  const [currentWeekStart, setCurrentWeekStart] = React.useState<Date>(() => startOfWeek(new Date(), { weekStartsOn: 1 })); // Monday as start
+  const [currentWeekStart, setCurrentWeekStart] = React.useState<Date>(() => startOfWeek(startOfDay(new Date()), { weekStartsOn: 1 })); // Initialize with start of today's week
 
    // Function to determine the date corresponding to a selected day of the week tab within the *current* week
    const getDateForDayOfWeek = (targetDayOfWeek: string): Date => {
      const targetDayIndex = daysOfWeek.indexOf(targetDayOfWeek); // 0 for Monday, 6 for Sunday
      // Add the index (0-6) to the start of the current week (which is always a Monday)
+     console.log(`getDateForDayOfWeek: Target=${targetDayOfWeek}, Index=${targetDayIndex}, currentWeekStart=${format(currentWeekStart, 'yyyy-MM-dd EEE')}, Result=${format(addDays(currentWeekStart, targetDayIndex), 'yyyy-MM-dd EEE')}`);
      return addDays(currentWeekStart, targetDayIndex);
    };
 
@@ -93,9 +94,10 @@ export function WorkoutTracker() {
     const fetchData = async () => {
         setIsLoading(true);
         const today = new Date();
-        const todayDayIndex = (getDay(today) + 6) % 7; // 0 = Monday
+        const todayDayIndex = (getDay(startOfDay(today)) + 6) % 7; // Use startOfDay for consistency
         const currentDayOfWeek = daysOfWeek[todayDayIndex];
-        const weekStartsOnMonday = startOfWeek(today, { weekStartsOn: 1 });
+        const weekStartsOnMonday = startOfWeek(startOfDay(today), { weekStartsOn: 1 }); // Use startOfDay for consistency
+        console.log(`Today: ${format(today, 'yyyy-MM-dd EEE')}, Calculated week start (Monday): ${format(weekStartsOnMonday, 'yyyy-MM-dd EEE')}`);
         setCurrentWeekStart(weekStartsOnMonday); // Set current week start date
 
         console.log("Loading workout data...");
@@ -109,8 +111,9 @@ export function WorkoutTracker() {
         if (loadedData && Object.keys(loadedData).length > 0) {
             const sortedDates = Object.keys(loadedData).sort((a, b) => b.localeCompare(a)); // Sort descending
             if (sortedDates.length > 0) {
-                lastRecordDate = parseISO(sortedDates[0]); // Get the most recent date
-                console.log(`Last recorded date found: ${format(lastRecordDate, 'yyyy-MM-dd')}`);
+                // Ensure parsing considers potential timezone shifts by using startOfDay
+                lastRecordDate = startOfDay(parseISO(sortedDates[0])); // Get the most recent date, normalized to start of day
+                console.log(`Last recorded date found (normalized): ${format(lastRecordDate, 'yyyy-MM-dd')}`);
             } else {
                  console.log("Loaded data object is not empty but contains no valid dates.");
             }
@@ -127,8 +130,10 @@ export function WorkoutTracker() {
          // Proceed with filling/loading logic only if some data was potentially found or needs init
         // Fill missed days based on the absolute last recorded date found
         if (lastRecordDate) {
-            const dayAfterLastRecord = addDays(lastRecordDate, 1);
-            const dayBeforeToday = subDays(startOfDay(today),1); // Use start of day for accurate comparison
+            // Use startOfDay consistently for comparison
+            const dayAfterLastRecord = startOfDay(addDays(lastRecordDate, 1));
+            const todayStart = startOfDay(today); // Ensure we compare with start of today
+            const dayBeforeToday = startOfDay(subDays(todayStart, 1)); // Use start of day
 
             // Only fill if there's a gap *before* today
             if (dayAfterLastRecord <= dayBeforeToday) {
@@ -140,8 +145,9 @@ export function WorkoutTracker() {
                      if (loadedData && Object.keys(loadedData).length > 0) {
                          const sortedDates = Object.keys(loadedData).sort((a, b) => b.localeCompare(a));
                           if (sortedDates.length > 0) {
-                             lastRecordDate = parseISO(sortedDates[0]); // Update last record date again
-                             console.log(`Updated last recorded date after fill: ${format(lastRecordDate, 'yyyy-MM-dd')}`);
+                             // Re-normalize last recorded date after potential fill
+                             lastRecordDate = startOfDay(parseISO(sortedDates[0]));
+                             console.log(`Updated last recorded date after fill (normalized): ${format(lastRecordDate, 'yyyy-MM-dd')}`);
                          }
                      }
                   }
@@ -155,28 +161,30 @@ export function WorkoutTracker() {
 
          // Populate reps state for the current week based on loaded data or defaults
         daysOfWeek.forEach((day) => {
-            const dateForThisDay = addDays(weekStartsOnMonday, daysOfWeek.indexOf(day)); // Calculate date based on THIS week's Monday
+            const dateForThisDay = startOfDay(addDays(weekStartsOnMonday, daysOfWeek.indexOf(day))); // Calculate date based on THIS week's Monday, normalized
             const dateString = format(dateForThisDay, 'yyyy-MM-dd');
             const dayPlan = workoutPlan[day as keyof typeof workoutPlan];
-            const isPastOrToday = startOfDay(dateForThisDay) <= startOfDay(today); // Compare start of day
+            const isPastOrToday = dateForThisDay <= startOfDay(today); // Compare start of day
+
+            console.log(`Processing ${day} (${dateString}), Is Past/Today: ${isPastOrToday}`);
 
             if (loadedData && loadedData[dateString] && isPastOrToday) {
                 // Data exists for this past/today day in the current week - load it
                 initialReps[day] = loadedData[dateString].reps;
                 initialLoadedDates[day] = dateString;
-                console.log(`Loaded existing data for ${day} (${dateString})`);
+                console.log(`   Loaded existing data for ${day} (${dateString})`);
             } else {
                 // No data exists for this day OR it's a future day OR no data loaded at all
                 initialLoadedDates[day] = null;
                  // Generate default empty state
                 initialReps[day] = generateDefaultRepsForDay(dayPlan);
                  if (isPastOrToday && loadedData) { // Distinguish between no record vs future
-                     console.log(`No record found for past/today ${day} (${dateString}). Generated default empty state.`);
+                     console.log(`   No record found for past/today ${day} (${dateString}). Generated default empty state.`);
                  } else if (!isPastOrToday) {
-                      console.log(`Future day ${day} (${dateString}). Generated default empty state.`);
+                      console.log(`   Future day ${day} (${dateString}). Generated default empty state.`);
                  } else {
                       // Handles the case where loadedData was null initially
-                      console.log(`Initializing default state for ${day} (${dateString}) as no data was loaded.`);
+                      console.log(`   Initializing default state for ${day} (${dateString}) as no data was loaded.`);
                  }
             }
             initialUnsavedChanges[day] = false; // Start with no unsaved changes
@@ -192,7 +200,7 @@ export function WorkoutTracker() {
     };
 
     fetchData();
-  // Run only once on mount - removed dependencies causing infinite loop
+  // Run only once on mount
   }, []);
 
 
