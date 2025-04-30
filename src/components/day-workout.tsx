@@ -7,11 +7,11 @@ import { ExerciseCard } from '@/components/exercise-card';
 import type { WorkoutDay } from '@/lib/workout-data';
 import { Sun, Moon, Heart, Repeat } from 'lucide-react';
 
-// Updated RepsState to use a unique exercise identifier as the key
+// RepsState structure: reps[day][workoutType][uniqueExerciseIdentifier][roundIndex]
 export interface RepsState {
   [day: string]: {
     [workoutType: string]: { // 'morningGym', 'eveningHome'
-      [exerciseIdentifier: string]: { // Unique key like 'supersetA_0', 'bicepCurls', 'optionalFinisher'
+      [uniqueExerciseIdentifier: string]: { // Unique key like 'supersetA_0', 'bicepCurls', 'optionalFinisher'
         [roundIndex: number]: number | string; // Store reps per round
       };
     };
@@ -22,9 +22,8 @@ export interface RepsState {
 interface DayWorkoutProps {
   day: string;
   plan: WorkoutDay | undefined;
-  reps: RepsState[string];
-  // Updated onRepChange to accept the unique exercise identifier
-   onRepChange: (day: string, workoutType: string, exerciseIdentifier: string, roundIndex: number, value: number | string) => void;
+  reps: RepsState[string]; // Reps for the current day
+  onRepChange: (day: string, workoutType: string, uniqueExerciseIdentifier: string, roundIndex: number, value: number | string) => void;
 }
 
 export function DayWorkout({ day, plan, reps, onRepChange }: DayWorkoutProps) {
@@ -38,16 +37,17 @@ export function DayWorkout({ day, plan, reps, onRepChange }: DayWorkoutProps) {
     );
   }
 
-  const handleExerciseRepChange = (exerciseIdentifier: string, roundIndex: number, value: number | string, workoutType: 'morningGym' | 'eveningHome') => {
-     onRepChange(day, workoutType, exerciseIdentifier, roundIndex, value);
+  // The callback function remains the same, passing the unique identifier from ExerciseCard up
+  const handleExerciseRepChange = (uniqueExerciseIdentifier: string, roundIndex: number, value: number | string, workoutType: 'morningGym' | 'eveningHome') => {
+     onRepChange(day, workoutType, uniqueExerciseIdentifier, roundIndex, value);
   };
 
 
   const renderExercises = (workoutType: 'morningGym' | 'eveningHome', exercises: WorkoutDay['morningGym'] | WorkoutDay['eveningHome'], icon: React.ReactNode) => {
     if (!exercises || Object.keys(exercises).length === 0) return null;
 
-     // Determine title based on workout type
     const title = workoutType === 'morningGym' ? "Morning Gym" : "Evening Home Dumbbells";
+    const workoutTypeReps = reps?.[workoutType] || {}; // Reps for this specific workout type (morning/evening)
 
     return (
       <Card className="mb-6 shadow-md">
@@ -58,27 +58,34 @@ export function DayWorkout({ day, plan, reps, onRepChange }: DayWorkoutProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-4 px-2 sm:px-6 space-y-4">
-          {Object.entries(exercises).map(([key, exercise]) => {
-              // The key here is like 'supersetA', 'bicepCurls' etc.
-              // ExerciseCard will handle generating more specific keys internally if needed (for supersets)
+          {Object.entries(exercises).map(([baseIdentifier, exercise]) => {
+              // Prepare the reps data specifically for this ExerciseCard
+              // Include reps for all unique identifiers starting with the baseIdentifier
+              const relevantReps: RepsState[string][string] = {};
+              for (const uniqueId in workoutTypeReps) {
+                if (uniqueId.startsWith(baseIdentifier)) {
+                  relevantReps[uniqueId] = workoutTypeReps[uniqueId];
+                }
+              }
+
               return(
                  <ExerciseCard
-                    key={key} // Keep the original key for React list rendering
-                    exerciseIdentifier={key} // Pass the base identifier
+                    key={baseIdentifier} // Use the base identifier for React list key
+                    baseIdentifier={baseIdentifier} // Pass the base identifier
                     exercise={exercise}
-                    // Pass the reps specific to this exercise/superset identifier
-                    reps={reps?.[workoutType]?.[key] || {}}
-                    onRepChange={(subExerciseIdentifier, roundIndex, value) => handleExerciseRepChange(subExerciseIdentifier, roundIndex, value, workoutType)}
-                    isSuperset={key.startsWith('superset')}
+                    repsData={relevantReps} // Pass the filtered reps data
+                    onRepChange={(uniqueExerciseIdentifier, roundIndex, value) => handleExerciseRepChange(uniqueExerciseIdentifier, roundIndex, value, workoutType)}
+                    isSuperset={baseIdentifier.startsWith('superset')}
                   />
               )
           })}
           {plan.optionalFinisher && workoutType === 'morningGym' && (
              <ExerciseCard
-                exerciseIdentifier="optionalFinisher"
+                baseIdentifier="optionalFinisher"
                 exercise={plan.optionalFinisher}
-                reps={reps?.morningGym?.optionalFinisher || {}}
-                 onRepChange={(subExerciseIdentifier, roundIndex, value) => handleExerciseRepChange(subExerciseIdentifier, roundIndex, value, workoutType)}
+                // Pass only the reps for the optional finisher
+                repsData={{ optionalFinisher: workoutTypeReps?.optionalFinisher || {} }}
+                onRepChange={(uniqueExerciseIdentifier, roundIndex, value) => handleExerciseRepChange(uniqueExerciseIdentifier, roundIndex, value, workoutType)}
                 isOptional={true}
               />
           )}
