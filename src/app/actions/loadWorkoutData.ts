@@ -1,6 +1,7 @@
+
 'use server';
 
-import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore'; // Removed limit
 import { db } from '@/lib/firebase/config';
 import type { RepsState } from '@/components/day-workout'; // Adjust path as necessary
 
@@ -31,8 +32,9 @@ export interface LoadedWorkoutData {
 
 export async function loadWorkoutData(): Promise<LoadedWorkoutData | null> {
   const dailyRecordsRef = collection(db, 'workoutRecords', MOCK_USER_ID, 'daily');
-  // Query to get all records, potentially could limit or paginate later
-  const q = query(dailyRecordsRef, orderBy('recordedAt', 'desc')); // Order by date recorded
+  // Query to get all records, ordered by date for potential future use (like filling gaps)
+  // No limit applied here, load all data. Consider pagination for very large datasets.
+  const q = query(dailyRecordsRef, orderBy('recordedAt', 'desc'));
 
   try {
     const querySnapshot = await getDocs(q);
@@ -42,19 +44,26 @@ export async function loadWorkoutData(): Promise<LoadedWorkoutData | null> {
       const data = doc.data() as DailyWorkoutRecordFirestore;
       const dateString = doc.id; // Document ID is the 'yyyy-MM-dd' date string
 
-      loadedData[dateString] = {
-        reps: data.reps,
-        dayOfWeek: data.dayOfWeek,
-        // Convert Firestore Timestamps to JS Date objects
-        recordedAt: new Date(data.recordedAt.seconds * 1000),
-        lastUpdatedAt: new Date(data.lastUpdatedAt.seconds * 1000),
-      };
+      // Basic validation to ensure data structure is somewhat correct
+      if (data.reps && data.dayOfWeek && data.recordedAt && data.lastUpdatedAt) {
+          loadedData[dateString] = {
+            reps: data.reps,
+            dayOfWeek: data.dayOfWeek,
+            // Convert Firestore Timestamps to JS Date objects
+            recordedAt: new Date(data.recordedAt.seconds * 1000),
+            lastUpdatedAt: new Date(data.lastUpdatedAt.seconds * 1000),
+          };
+      } else {
+         console.warn(`Skipping invalid record for date: ${dateString}`, data);
+      }
     });
 
-    console.log('Workout data loaded successfully.');
+    console.log(`Workout data loaded successfully. Found ${Object.keys(loadedData).length} records.`);
     return loadedData;
   } catch (error) {
     console.error('Error loading workout data:', error);
     return null; // Indicate failure
   }
 }
+
+    

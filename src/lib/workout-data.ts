@@ -157,3 +157,5 @@ export const workoutPlan: { [key: string]: WorkoutDayPlan } = {
      cardio: 'Optional light walk or bike (part of recovery)',
   },
 };
+
+    

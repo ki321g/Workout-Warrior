@@ -1,3 +1,4 @@
+
 'use server';
 
 import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
@@ -18,7 +19,7 @@ interface DailyWorkoutRecord {
 }
 
 export async function saveWorkoutData(
-  date: Date,
+  date: Date, // Use the provided date for saving
   dayOfWeek: string,
   dayReps: RepsState[string]
 ): Promise<{ success: boolean; error?: string }> {
@@ -26,6 +27,7 @@ export async function saveWorkoutData(
     return { success: false, error: 'Missing required data.' };
   }
 
+  // Format the *provided* date as the document ID
   const dateString = format(date, 'yyyy-MM-dd');
   const docRef = doc(db, 'workoutRecords', MOCK_USER_ID, 'daily', dateString);
 
@@ -44,15 +46,18 @@ export async function saveWorkoutData(
         reps: dayReps,
         recordedAt: serverTimestamp(),
         lastUpdatedAt: serverTimestamp(),
-        dayOfWeek: dayOfWeek,
+        dayOfWeek: dayOfWeek, // Store the day name as well
       };
       await setDoc(docRef, newRecord);
     }
 
-    console.log('Workout data saved successfully for:', dateString);
+    console.log(`Workout data saved successfully for: ${dayOfWeek} (${dateString})`);
     return { success: true };
   } catch (error) {
     console.error('Error saving workout data:', error);
     return { success: false, error: 'Failed to save workout data.' };
   }
 }
+
+
+    
