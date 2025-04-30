@@ -1,10 +1,11 @@
+
 "use client";
 
 import * as React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DayWorkout, type RepsState } from '@/components/day-workout';
 import { workoutPlan } from '@/lib/workout-data';
-import { CalendarDays, Sun, Moon, Heart } from 'lucide-react';
+import { CalendarDays } from 'lucide-react';
 
 const daysOfWeek = [
   'Monday',
@@ -39,8 +40,8 @@ export function WorkoutTracker() {
 
   }, []);
 
-  const handleRepChange = (day: string, workoutType: string, exerciseKey: string, roundIndex: number, value: number | string) => {
-    const numericValue = value === '' ? '' : Number(value); // Allow empty string to clear input
+ const handleRepChange = (day: string, workoutType: string, exerciseIdentifier: string, roundIndex: number, value: number | string) => {
+    const numericValue = value === '' ? '' : Number(value); // Allow empty string or number
 
     setReps((prevReps) => {
       const updatedReps = {
@@ -49,8 +50,8 @@ export function WorkoutTracker() {
           ...prevReps[day],
           [workoutType]: {
             ...prevReps[day]?.[workoutType],
-            [exerciseKey]: {
-              ...prevReps[day]?.[workoutType]?.[exerciseKey],
+            [exerciseIdentifier]: { // Use the unique identifier directly
+              ...prevReps[day]?.[workoutType]?.[exerciseIdentifier],
               [roundIndex]: numericValue,
             },
           },
@@ -64,24 +65,30 @@ export function WorkoutTracker() {
 
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    // Added padding for better spacing on mobile
+    <div className="container mx-auto px-2 sm:px-4 py-8 max-w-4xl">
       <header className="text-center mb-8">
-        <h1 className="text-4xl font-bold text-primary mb-2">Workout Warrior</h1>
-        <p className="text-lg text-muted-foreground">Track your weekly progress</p>
+        <h1 className="text-3xl sm:text-4xl font-bold text-primary mb-2">Workout Warrior</h1>
+        <p className="text-base sm:text-lg text-muted-foreground">Track your weekly progress</p>
       </header>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-6">
+        {/* Adjusted grid columns for responsiveness */}
+        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-1 sm:gap-2 mb-6 h-auto flex-wrap justify-center">
           {daysOfWeek.map((day) => (
-            <TabsTrigger key={day} value={day} className="flex items-center gap-2 py-2 px-3 text-xs sm:text-sm">
-              <CalendarDays className="h-4 w-4 hidden sm:inline" />
-              {day}
+            <TabsTrigger
+              key={day}
+              value={day}
+              className="flex items-center justify-center gap-1 sm:gap-2 py-2 px-1 text-[10px] sm:text-xs md:text-sm h-10 sm:h-auto" // Adjusted padding and text size
+            >
+              <CalendarDays className="h-3 w-3 sm:h-4 sm:w-4 hidden sm:inline" />
+              <span className="truncate">{day}</span>
             </TabsTrigger>
           ))}
         </TabsList>
 
         {daysOfWeek.map((day) => (
-          <TabsContent key={day} value={day}>
+          <TabsContent key={day} value={day} className="mt-4"> {/* Added margin-top */}
              <DayWorkout
                 day={day}
                 plan={workoutPlan[day as keyof typeof workoutPlan]}
