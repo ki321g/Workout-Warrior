@@ -3,8 +3,10 @@
 
 import * as React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // Import Select components
 import { DayWorkout, type RepsState } from '@/components/day-workout';
 import { workoutPlan } from '@/lib/workout-data';
+import { useIsMobile } from '@/hooks/use-mobile'; // Import useIsMobile hook
 import { CalendarDays } from 'lucide-react';
 
 const daysOfWeek = [
@@ -20,6 +22,7 @@ const daysOfWeek = [
 export function WorkoutTracker() {
   const [reps, setReps] = React.useState<RepsState>({});
   const [activeTab, setActiveTab] = React.useState(daysOfWeek[0]);
+  const isMobile = useIsMobile(); // Hook to detect mobile screen size
 
   React.useEffect(() => {
     // Load saved reps from local storage on component mount
@@ -72,23 +75,45 @@ export function WorkoutTracker() {
         <p className="text-base sm:text-lg text-muted-foreground">Track your weekly progress</p>
       </header>
 
+      {/* Use Tabs component to manage content visibility based on activeTab */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        {/* Adjusted grid columns for responsiveness */}
-        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-1 sm:gap-2 mb-6 h-auto flex-wrap justify-center">
-          {daysOfWeek.map((day) => (
-            <TabsTrigger
-              key={day}
-              value={day}
-              className="flex items-center justify-center gap-1 sm:gap-2 py-2 px-1 text-[10px] sm:text-xs md:text-sm h-10 sm:h-auto" // Adjusted padding and text size
-            >
-              <CalendarDays className="h-3 w-3 sm:h-4 sm:w-4 hidden sm:inline" />
-              <span className="truncate">{day}</span>
-            </TabsTrigger>
-          ))}
-        </TabsList>
 
+        {/* Conditional rendering for day selection UI */}
+        {isMobile ? (
+          <div className="mb-6">
+             <Select value={activeTab} onValueChange={setActiveTab}>
+                <SelectTrigger className="w-full h-12 text-base">
+                  <SelectValue placeholder="Select a day" />
+                </SelectTrigger>
+                <SelectContent>
+                  {daysOfWeek.map((day) => (
+                    <SelectItem key={day} value={day} className="text-base py-2">
+                      {day}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+          </div>
+        ) : (
+          // Desktop view: Use TabsList
+          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-1 sm:gap-2 mb-6 h-auto flex-wrap justify-center">
+            {daysOfWeek.map((day) => (
+              <TabsTrigger
+                key={day}
+                value={day}
+                className="flex items-center justify-center gap-1 sm:gap-2 py-2 px-1 text-[10px] sm:text-xs md:text-sm h-10 sm:h-auto" // Adjusted padding and text size
+              >
+                <CalendarDays className="h-3 w-3 sm:h-4 sm:w-4 hidden sm:inline" />
+                <span className="truncate">{day}</span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        )}
+
+
+        {/* TabsContent remains the same, controlled by activeTab */}
         {daysOfWeek.map((day) => (
-          <TabsContent key={day} value={day} className="mt-4"> {/* Added margin-top */}
+          <TabsContent key={day} value={day} className="mt-4 focus-visible:ring-0 focus-visible:ring-offset-0"> {/* Removed focus ring */}
              <DayWorkout
                 day={day}
                 plan={workoutPlan[day as keyof typeof workoutPlan]}
