@@ -26,27 +26,6 @@ const daysOfWeek = [
   'Sunday',
 ];
 
-// Helper to parse suggested reps string (e.g., "8-10 reps", "10 reps", "3x12") - Moved here for use in seeding
-const parseSuggestedReps = (repsString?: string): { min: number; max: number } | null => {
-    if (!repsString) return null;
-    const setsMatch = repsString.match(/(\d+)\s*x\s*(\d+)/);
-    if (setsMatch) {
-        const repCount = parseInt(setsMatch[2], 10);
-        return { min: repCount, max: repCount };
-    }
-    const rangeMatch = repsString.match(/(\d+)\s*[-–]\s*(\d+)/);
-    if (rangeMatch) {
-        return { min: parseInt(rangeMatch[1], 10), max: parseInt(rangeMatch[2], 10) };
-    }
-    const singleMatch = repsString.match(/(\d+)/);
-    if (singleMatch) {
-        const repCount = parseInt(singleMatch[1], 10);
-        return { min: repCount, max: repCount };
-    }
-    return null; // Could not parse
-};
-
-
 // Helper function to generate a default empty rep state for a given day's plan
 function generateDefaultRepsForDay(dayPlan: WorkoutDayPlan | undefined): RepsState[string] {
     const defaultDayReps: RepsState[string] = { morningGym: {}, eveningHome: {} };
@@ -130,106 +109,6 @@ function generateZeroRepsForDay(dayPlan: WorkoutDayPlan | undefined): RepsState[
 }
 
 
-// Helper function to generate sample reps for a given day's plan
-function generateSampleRepsForDay(dayPlan: WorkoutDayPlan | undefined): RepsState[string] {
-    const sampleDayReps: RepsState[string] = { morningGym: {}, eveningHome: {} };
-    if (!dayPlan) return sampleDayReps;
-
-    const processWorkoutItems = (items: { [key: string]: Exercise | Superset } | undefined, workoutType: 'morningGym' | 'eveningHome') => {
-        if (!items) return;
-        Object.entries(items).forEach(([baseIdentifier, item]) => {
-            const rounds = (item as Superset).rounds || (item as Exercise).rounds || 1;
-            if ('exercises' in item) { // Superset
-                (item as Superset).exercises.forEach((ex, idx) => {
-                    const uniqueId = `${baseIdentifier}_${idx}`;
-                    const exRounds = ex.rounds || rounds;
-                    const suggested = parseSuggestedReps(ex.reps);
-                    const sampleRep = suggested ? Math.max(0, suggested.min - Math.floor(Math.random() * 2)) : 8; // Sample rep slightly below min or 8
-                    sampleDayReps[workoutType]![uniqueId] = {};
-                    for (let i = 0; i < exRounds; i++) {
-                        // Introduce some variation per round
-                         const variation = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
-                         sampleDayReps[workoutType]![uniqueId]![i] = Math.max(0, sampleRep + variation);
-                    }
-                });
-            } else { // Single exercise
-                const suggested = parseSuggestedReps((item as Exercise).reps);
-                const sampleRep = suggested ? Math.max(0, suggested.min - Math.floor(Math.random() * 2)) : 10;
-                sampleDayReps[workoutType]![baseIdentifier] = {};
-                const exRounds = (item as Exercise).rounds || 1;
-                for (let i = 0; i < exRounds; i++) {
-                      const variation = Math.floor(Math.random() * 3) - 1;
-                     sampleDayReps[workoutType]![baseIdentifier]![i] = Math.max(0, sampleRep + variation);
-                }
-            }
-        });
-    };
-
-    processWorkoutItems(dayPlan.morningGym, 'morningGym');
-    processWorkoutItems(dayPlan.eveningHome, 'eveningHome');
-    if (dayPlan.optionalFinisher) {
-        const finisherRounds = dayPlan.optionalFinisher.rounds || 1;
-        const suggested = parseSuggestedReps(dayPlan.optionalFinisher.reps);
-        const sampleRep = suggested ? Math.max(0, suggested.min - 1) : 12;
-        sampleDayReps.morningGym!['optionalFinisher'] = {};
-        for (let i = 0; i < finisherRounds; i++) {
-            const variation = Math.floor(Math.random() * 3) - 1;
-            sampleDayReps.morningGym!['optionalFinisher']![i] = Math.max(0, sampleRep + variation);
-        }
-    }
-
-    return sampleDayReps;
-}
-
-
-// Seed sample data for previous days if no records exist
-async function seedInitialDataIfNeeded(today: Date): Promise<boolean> {
-    console.log("Checking if initial data seeding is needed...");
-    const loadedData = await loadWorkoutData();
-
-    if (loadedData && Object.keys(loadedData).length > 0) {
-        console.log("Existing data found. No seeding needed.");
-        return false; // Data exists, no need to seed
-    }
-
-    console.log("No existing data found. Seeding sample data for previous Monday and Tuesday.");
-
-    const todayDayIndex = (getDay(today) + 6) % 7; // 0 = Monday
-    let daysToSeed: { dayOfWeek: string, date: Date }[] = [];
-
-    // Find previous Monday
-    const daysSinceMonday = todayDayIndex; // 0 if today is Mon, 1 if Tue, etc.
-    const prevMondayDate = subDays(today, daysSinceMonday);
-    daysToSeed.push({ dayOfWeek: 'Monday', date: prevMondayDate });
-
-
-    // Find previous Tuesday
-    if (daysSinceMonday > 0) { // Only seed Tuesday if today is not Monday
-        const prevTuesdayDate = addDays(prevMondayDate, 1);
-        if (differenceInDays(today, prevTuesdayDate) >= 0) { // Ensure Tuesday is not in the future
-            daysToSeed.push({ dayOfWeek: 'Tuesday', date: prevTuesdayDate });
-        }
-    }
-
-
-     if (daysToSeed.length === 0) {
-        console.log("Could not determine previous Monday/Tuesday to seed. Skipping seed.");
-        return false;
-    }
-
-
-    for (const { dayOfWeek, date } of daysToSeed) {
-        const dayPlan = workoutPlan[dayOfWeek as keyof typeof workoutPlan];
-        const sampleReps = generateSampleRepsForDay(dayPlan);
-        console.log(`Seeding sample data for ${dayOfWeek} (${format(date, 'yyyy-MM-dd')})`);
-        await saveWorkoutData(date, dayOfWeek, sampleReps);
-    }
-
-    console.log("Sample data seeding complete.");
-    return true; // Data was seeded
-}
-
-
 export function WorkoutTracker() {
   const [reps, setReps] = React.useState<RepsState>({});
   const [activeTab, setActiveTab] = React.useState(daysOfWeek[0]);
@@ -259,16 +138,9 @@ export function WorkoutTracker() {
         const todayDayIndex = (getDay(today) + 6) % 7;
         const currentDayOfWeek = daysOfWeek[todayDayIndex];
 
-        // Attempt to seed data if none exists
-        const dataWasSeeded = await seedInitialDataIfNeeded(today);
-
+        console.log("Loading workout data...");
         // Load all historical data
         let loadedData = await loadWorkoutData();
-        if (dataWasSeeded && !loadedData) {
-            // Small delay and retry load if seeding happened but load was empty initially
-            await new Promise(resolve => setTimeout(resolve, 500));
-            loadedData = await loadWorkoutData();
-        }
 
         const initialReps: RepsState = {};
         const initialUnsavedChanges: { [day: string]: boolean } = {};
@@ -280,14 +152,24 @@ export function WorkoutTracker() {
             const sortedDates = Object.keys(loadedData).sort().reverse();
             if (sortedDates.length > 0) {
                 lastRecordDate = parseISO(sortedDates[0]);
+                console.log(`Last recorded date found: ${format(lastRecordDate, 'yyyy-MM-dd')}`);
+            } else {
+                 console.log("Loaded data object is not empty but contains no dates.");
             }
+        } else {
+            console.log("No existing workout data found.");
         }
 
         // Fill missed days based on the absolute last recorded date found
-        const filledMissed = await fillMissedDays(lastRecordDate, today);
-        if (filledMissed) {
-            // Reload data if missed days were filled
-            loadedData = await loadWorkoutData();
+        if (lastRecordDate) {
+            const filledMissed = await fillMissedDays(lastRecordDate, today);
+            if (filledMissed) {
+                // Reload data if missed days were filled
+                console.log("Missed days were filled. Reloading data...");
+                loadedData = await loadWorkoutData();
+            }
+        } else {
+             console.log("No last record date, skipping fillMissedDays check.");
         }
 
 
@@ -305,14 +187,17 @@ export function WorkoutTracker() {
             } else {
                  // No data for this day in the current week
                  const dayPlan = workoutPlan[day as keyof typeof workoutPlan];
-                 if (index < todayDayIndex) {
-                      // It's a past day with no record, generate zero reps
+                 // If it's a past day in the current week and no record exists,
+                 // and we didn't just fill it via fillMissedDays, generate zero reps.
+                 // Otherwise (today, future, or rest/recovery days), generate default empty reps.
+                 if (index < todayDayIndex && dayPlan && !dayPlan.restDay && !dayPlan.recovery) {
+                      // It's a past workout day with no record
                       initialReps[day] = generateZeroRepsForDay(dayPlan);
-                      console.log(`No record for past day ${day} (${dateString}). Generated zero reps.`);
+                      console.log(`No record for past workout day ${day} (${dateString}). Generated zero reps.`);
                   } else {
-                      // It's today or a future day, generate default empty reps
+                      // It's today, a future day, or a rest/recovery day
                      initialReps[day] = generateDefaultRepsForDay(dayPlan);
-                     console.log(`No record for today/future day ${day} (${dateString}). Generated default reps.`);
+                     console.log(`No record for day ${day} (${dateString}). Generated default empty reps.`);
                  }
                 initialLastSaved[day] = null;
                 initialLoadedDates[day] = null;
@@ -326,6 +211,7 @@ export function WorkoutTracker() {
         setLoadedDataDates(initialLoadedDates);
         setActiveTab(currentDayOfWeek); // Set the active tab to the current day of the week
         setIsLoading(false);
+        console.log("Initial data load complete.");
     };
 
     fetchData();
@@ -352,14 +238,17 @@ export function WorkoutTracker() {
             return;
         }
 
+       console.log(`Auto-saving data for ${dayToSave} (${format(dateToSave, 'yyyy-MM-dd')})...`);
        const result = await saveWorkoutData(dateToSave, dayToSave, dayRepsToSave);
        setIsSaving(false);
 
        if (result.success) {
+          console.log(`Auto-save successful for ${dayToSave}.`);
           setLastSavedTimes(prev => ({ ...prev, [dayToSave]: new Date() }));
           setHasUnsavedChanges(prev => ({ ...prev, [dayToSave]: false }));
           setLoadedDataDates(prev => ({ ...prev, [dayToSave]: format(dateToSave, 'yyyy-MM-dd') })); // Mark data as loaded/saved for this date
        } else {
+         console.error(`Auto-save failed for ${dayToSave}:`, result.error);
          toast({
            title: 'Auto-Save Failed',
            description: result.error || `Could not automatically save workout data for ${dayToSave}.`,
@@ -419,20 +308,24 @@ export function WorkoutTracker() {
 
 
        if (!dayRepsToSave) {
+            console.error(`Manual save error: No workout data found for ${dayToSave}.`);
             toast({ title: 'Save Error', description: `No workout data found for ${dayToSave}.`, variant: 'destructive' });
             setIsSaving(false);
             return;
         }
 
+       console.log(`Manually saving data for ${dayToSave} (${format(dateToSave, 'yyyy-MM-dd')})...`);
        const result = await saveWorkoutData(dateToSave, dayToSave, dayRepsToSave);
        setIsSaving(false);
 
        if (result.success) {
+           console.log(`Manual save successful for ${dayToSave}.`);
            setLastSavedTimes(prev => ({ ...prev, [dayToSave]: new Date() }));
            setHasUnsavedChanges(prev => ({ ...prev, [dayToSave]: false }));
             setLoadedDataDates(prev => ({ ...prev, [dayToSave]: format(dateToSave, 'yyyy-MM-dd') })); // Mark data as loaded/saved for this date
            toast({ title: 'Workout Saved', description: `Progress for ${dayToSave} (${format(dateToSave, 'MMM d')}) saved successfully.` });
        } else {
+            console.error(`Manual save failed for ${dayToSave}:`, result.error);
            toast({ title: 'Save Failed', description: result.error || `Could not save workout data for ${dayToSave}.`, variant: 'destructive' });
        }
    };
