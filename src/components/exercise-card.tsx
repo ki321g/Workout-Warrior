@@ -1,7 +1,6 @@
  "use client";
 
 import * as React from 'react';
-import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -119,8 +118,6 @@ export function ExerciseCard({ baseIdentifier, exercise, repsData, onRepChange, 
     const suggestedRepsStr = ex.reps;
     const uniqueId = getUniqueExerciseIdentifier(baseIdentifier, indexSuffix);
     const IconComponent = ex.icon || Dumbbell;
-    const imageName = ex.name.toLowerCase().replace(/ /g, '-').replace(/[()]/g, '');
-    const imageUrl = `/images/exercises/${imageName}.gif`;
 
     return (
       <div key={uniqueId} className="mb-4 last:mb-0">
@@ -132,21 +129,10 @@ export function ExerciseCard({ baseIdentifier, exercise, repsData, onRepChange, 
             {suggestedRepsStr && <Badge variant="secondary" className="text-xs sm:text-sm">{suggestedRepsStr}</Badge>}
         </div>
 
-         <div className="my-2 flex justify-center">
-            <Image
-              src={imageUrl}
-              alt={`${ex.name} illustration`}
-              width={100}
-              height={100}
-              className="rounded-md object-contain"
-               // Hide the image element if it fails to load (e.g., 404 Not Found)
-               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-               unoptimized // Add unoptimized for GIFs
-            />
-          </div>
+         {/* Removed Image component */}
 
         <div className={cn(
-             "grid gap-3",
+             "grid gap-3 mt-2", // Added mt-2 for spacing after removing image
              rounds <= 2 ? 'grid-cols-1 sm:grid-cols-2' : '',
              rounds === 3 ? 'grid-cols-1 sm:grid-cols-3' : '',
              rounds >= 4 ? 'grid-cols-2 sm:grid-cols-4' : ''

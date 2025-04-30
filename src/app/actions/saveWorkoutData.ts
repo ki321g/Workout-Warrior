@@ -19,16 +19,15 @@ interface DailyWorkoutRecord {
 }
 
 export async function saveWorkoutData(
-  date: Date, // Use the provided date for saving
+  dateString: string, // Now expects a date string in 'yyyy-MM-dd' format
   dayOfWeek: string,
   dayReps: RepsState[string]
 ): Promise<{ success: boolean; error?: string }> {
-  if (!date || !dayOfWeek || !dayReps) {
+  if (!dateString || !dayOfWeek || !dayReps) {
     return { success: false, error: 'Missing required data.' };
   }
 
-  // Format the *provided* date as the document ID
-  const dateString = format(date, 'yyyy-MM-dd');
+  // Use the provided date string directly
   const docRef = doc(db, 'workoutRecords', MOCK_USER_ID, 'daily', dateString);
   console.log(`Saving workout data for: ${dayOfWeek} (${dateString})`);
 

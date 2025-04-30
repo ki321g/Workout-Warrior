@@ -72,7 +72,7 @@ export const workoutPlan: { [key: string]: WorkoutDayPlan } = {
         rounds: 3,
       },
       supersetB: {
-        exercises: [
+         exercises: [
           { name: 'Lat Pulldown or Assisted Pull-Up', reps: '8-10 reps', icon: GitBranchPlus }, // Using GitBranchPlus as placeholder
           { name: 'Goblet Squats', reps: '12 reps', icon: Dumbbell },
         ],
@@ -103,7 +103,7 @@ export const workoutPlan: { [key: string]: WorkoutDayPlan } = {
         rounds: 3,
       },
       supersetB: {
-        exercises: [
+        exercises: [ 
           { name: 'Romanian Deadlift', reps: '10 reps', icon: Weight }, // Use Weight icon
           { name: 'Overhead Dumbbell Press', reps: '10-12 reps', icon: Dumbbell },
         ],
@@ -130,7 +130,7 @@ export const workoutPlan: { [key: string]: WorkoutDayPlan } = {
         rounds: 3,
       },
       supersetB: {
-        exercises: [
+         exercises: [
           { name: 'Lat Pulldown or Assisted Pull-Up', reps: '8-10 reps', icon: GitBranchPlus },
           { name: 'Goblet Squats', reps: '12 reps', icon: Dumbbell },
         ],

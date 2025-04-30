@@ -255,7 +255,8 @@ export function WorkoutTracker() {
        setIsSaving(true);
        const dateToSave = getDateForDayOfWeek(dayToSave); // Determine the correct date for the active tab using the updated function
        const dayRepsToSave = reps[dayToSave];
-       console.log(`[handleManualSave] Day to save: ${dayToSave}, Date to save: ${format(dateToSave, 'yyyy-MM-dd')}`);
+       const dateToSaveString = format(dateToSave, 'yyyy-MM-dd');
+       console.log(`[handleManualSave] Day to save: ${dayToSave}, Date to save: ${dateToSaveString}`);
        console.log(`[handleManualSave] Day reps to save:`, dayRepsToSave);
 
 
@@ -266,8 +267,8 @@ export function WorkoutTracker() {
             return;
         }
 
-       console.log(`Manually saving data for ${dayToSave} (${format(dateToSave, 'yyyy-MM-dd')})...`);
-       const result = await saveWorkoutData(dateToSave, dayToSave, dayRepsToSave);
+       console.log(`Manually saving data for ${dayToSave} (${dateToSaveString})...`);
+       const result = await saveWorkoutData(dateToSaveString, dayToSave, dayRepsToSave);
        setIsSaving(false);
 
        if (result.success) {
