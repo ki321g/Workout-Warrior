@@ -10,7 +10,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { CalendarDays, BarChartBig, Save, Loader2, CheckCircle } from 'lucide-react'; // Added CheckCircle
 import { saveWorkoutData } from '@/app/actions/saveWorkoutData';
 import { loadWorkoutData, type LoadedWorkoutData } from '@/app/actions/loadWorkoutData';
-import { fillMissedDays } from '@/app/actions/fillMissedDays';
+import { fillMissedDays } from '@/app/actions/fillMissedDays'; // Import fillMissedDays
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -84,8 +84,10 @@ export function WorkoutTracker() {
    const getDateForDayOfWeek = (targetDayOfWeek: string): Date => {
      const targetDayIndex = daysOfWeek.indexOf(targetDayOfWeek); // 0 for Monday, 6 for Sunday
      // Add the index (0-6) to the start of the current week (which is always a Monday)
-     console.log(`getDateForDayOfWeek: Target=${targetDayOfWeek}, Index=${targetDayIndex}, currentWeekStart=${format(currentWeekStart, 'yyyy-MM-dd EEE')}, Result=${format(addDays(currentWeekStart, targetDayIndex), 'yyyy-MM-dd EEE')}`);
-     return addDays(currentWeekStart, targetDayIndex);
+     // Use startOfDay to ensure consistency and remove time component influence
+     const calculatedDate = startOfDay(addDays(currentWeekStart, targetDayIndex));
+     console.log(`[getDateForDayOfWeek] Target=${targetDayOfWeek}, Index=${targetDayIndex}, currentWeekStart=${format(currentWeekStart, 'yyyy-MM-dd EEE')}, Result Date=${format(calculatedDate, 'yyyy-MM-dd EEE')}`);
+     return calculatedDate;
    };
 
 
@@ -93,10 +95,11 @@ export function WorkoutTracker() {
   React.useEffect(() => {
     const fetchData = async () => {
         setIsLoading(true);
-        const today = new Date();
-        const todayDayIndex = (getDay(startOfDay(today)) + 6) % 7; // Use startOfDay for consistency
+        const today = startOfDay(new Date()); // Use startOfDay for all comparisons
+        const todayDayIndex = (getDay(today) + 6) % 7; // 0 = Monday
         const currentDayOfWeek = daysOfWeek[todayDayIndex];
-        const weekStartsOnMonday = startOfWeek(startOfDay(today), { weekStartsOn: 1 }); // Use startOfDay for consistency
+        // Ensure week starts on Monday and uses startOfDay
+        const weekStartsOnMonday = startOfWeek(today, { weekStartsOn: 1 });
         console.log(`Today: ${format(today, 'yyyy-MM-dd EEE')}, Calculated week start (Monday): ${format(weekStartsOnMonday, 'yyyy-MM-dd EEE')}`);
         setCurrentWeekStart(weekStartsOnMonday); // Set current week start date
 
@@ -119,26 +122,25 @@ export function WorkoutTracker() {
             }
         } else {
             console.log("No existing workout data found.");
-            // Initialize with empty state if no data exists at all
-             daysOfWeek.forEach(day => {
+             // Initialize with empty state if no data exists at all
+            daysOfWeek.forEach(day => {
                 initialReps[day] = generateDefaultRepsForDay(workoutPlan[day as keyof typeof workoutPlan]);
                 initialUnsavedChanges[day] = false;
                 initialLoadedDates[day] = null;
-             });
+            });
         }
 
-         // Proceed with filling/loading logic only if some data was potentially found or needs init
         // Fill missed days based on the absolute last recorded date found
         if (lastRecordDate) {
             // Use startOfDay consistently for comparison
-            const dayAfterLastRecord = startOfDay(addDays(lastRecordDate, 1));
-            const todayStart = startOfDay(today); // Ensure we compare with start of today
-            const dayBeforeToday = startOfDay(subDays(todayStart, 1)); // Use start of day
+            const dayAfterLastRecord = addDays(lastRecordDate, 1); // Already startOfDay
+            const todayStart = today; // Already startOfDay
+            const dayBeforeToday = subDays(todayStart, 1); // Already startOfDay
 
             // Only fill if there's a gap *before* today
             if (dayAfterLastRecord <= dayBeforeToday) {
                  console.log(`Checking for missed days between ${format(dayAfterLastRecord, 'yyyy-MM-dd')} and ${format(dayBeforeToday, 'yyyy-MM-dd')}`);
-                 const filledMissed = await fillMissedDays(lastRecordDate, today);
+                 const filledMissed = await fillMissedDays(lastRecordDate, today); // Pass normalized dates
                  if (filledMissed) {
                      console.log("Missed days were filled. Reloading data...");
                      loadedData = await loadWorkoutData(); // Reload to include filled data
@@ -159,22 +161,23 @@ export function WorkoutTracker() {
          }
 
 
-         // Populate reps state for the current week based on loaded data or defaults
+        // Populate reps state for the current week based on loaded data or defaults
         daysOfWeek.forEach((day) => {
-            const dateForThisDay = startOfDay(addDays(weekStartsOnMonday, daysOfWeek.indexOf(day))); // Calculate date based on THIS week's Monday, normalized
+            // Calculate date based on THIS week's Monday, normalized using startOfDay
+            const dateForThisDay = startOfDay(addDays(weekStartsOnMonday, daysOfWeek.indexOf(day)));
             const dateString = format(dateForThisDay, 'yyyy-MM-dd');
             const dayPlan = workoutPlan[day as keyof typeof workoutPlan];
-            const isPastOrToday = dateForThisDay <= startOfDay(today); // Compare start of day
+            const isPastOrToday = dateForThisDay <= today; // Compare start of day
 
             console.log(`Processing ${day} (${dateString}), Is Past/Today: ${isPastOrToday}`);
 
-            if (loadedData && loadedData[dateString] && isPastOrToday) {
-                // Data exists for this past/today day in the current week - load it
+            if (loadedData && loadedData[dateString]) {
+                // Data exists for this day in the current week - load it
                 initialReps[day] = loadedData[dateString].reps;
                 initialLoadedDates[day] = dateString;
                 console.log(`   Loaded existing data for ${day} (${dateString})`);
             } else {
-                // No data exists for this day OR it's a future day OR no data loaded at all
+                 // No data exists for this day OR it's a future day OR no data loaded at all
                 initialLoadedDates[day] = null;
                  // Generate default empty state
                 initialReps[day] = generateDefaultRepsForDay(dayPlan);
@@ -200,7 +203,8 @@ export function WorkoutTracker() {
     };
 
     fetchData();
-  // Run only once on mount
+  // Removed dependency array to fix infinite loop
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
 
@@ -248,7 +252,7 @@ export function WorkoutTracker() {
        }
 
        setIsSaving(true);
-       const dateToSave = getDateForDayOfWeek(dayToSave); // Determine the correct date for the active tab
+       const dateToSave = getDateForDayOfWeek(dayToSave); // Determine the correct date for the active tab using the updated function
        const dayRepsToSave = reps[dayToSave];
 
 
@@ -348,11 +352,12 @@ export function WorkoutTracker() {
       </Tabs>
 
        {/* Floating Action Buttons - Arranged horizontally at the bottom right */}
-       <div className="fixed bottom-4 right-4 flex gap-3 z-50">
+       {/* Ensure the parent div spans width and uses flex to position items */}
+       <div className="fixed bottom-4 right-4 z-50 flex gap-3">
             <Button
                 variant="default"
-                size="lg" // Keep button large
-                className="rounded-full shadow-lg h-14 w-14 p-0 flex items-center justify-center" // Style as FAB
+                size="lg"
+                className="rounded-full shadow-lg h-14 w-14 p-0 flex items-center justify-center" // FAB style
                 onClick={handleManualSave}
                 disabled={isSaving || !currentDayHasUnsavedChanges}
                 aria-label="Save Workout"
@@ -362,8 +367,8 @@ export function WorkoutTracker() {
             <Link href="/analytics" passHref>
                  <Button
                     variant="secondary"
-                    size="lg" // Keep button large
-                    className="rounded-full shadow-lg h-14 w-14 p-0 flex items-center justify-center" // Style as FAB
+                    size="lg"
+                    className="rounded-full shadow-lg h-14 w-14 p-0 flex items-center justify-center" // FAB style
                     aria-label="View Analytics"
                   >
                     <BarChartBig className="h-6 w-6" />
@@ -373,5 +378,3 @@ export function WorkoutTracker() {
     </div>
   );
 }
-
-    
