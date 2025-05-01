@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -355,6 +356,14 @@ function getPayloadConfigFromPayload(
     : config[key as keyof typeof config]
 }
 
+// Export Recharts components
+const ChartLineChart = RechartsPrimitive.LineChart
+const ChartLine = RechartsPrimitive.Line
+const ChartXAxis = RechartsPrimitive.XAxis
+const ChartYAxis = RechartsPrimitive.YAxis
+const ChartCartesianGrid = RechartsPrimitive.CartesianGrid
+const ChartLegendRecharts = RechartsPrimitive.Legend // Renamed to avoid conflict
+
 export {
   ChartContainer,
   ChartTooltip,
@@ -362,4 +371,14 @@ export {
   ChartLegend,
   ChartLegendContent,
   ChartStyle,
+  // Re-export recharts components
+  ChartLineChart, // Export LineChart
+  ChartLine,
+  ChartXAxis,
+  ChartYAxis,
+  ChartCartesianGrid,
+  ChartLegendRecharts, // Export Legend
 }
+
+
+    

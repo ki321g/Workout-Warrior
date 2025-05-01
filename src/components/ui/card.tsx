@@ -1,3 +1,4 @@
+
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
@@ -30,29 +31,34 @@ const CardHeader = React.forwardRef<
 CardHeader.displayName = "CardHeader"
 
 const CardTitle = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div
+  HTMLParagraphElement, // Changed from HTMLDivElement to HTMLParagraphElement for semantic correctness
+  React.HTMLAttributes<HTMLHeadingElement> // Use HTMLHeadingElement for props
+>(({ className, children, ...props }, ref) => (
+   // Use h3 or appropriate heading level instead of div
+   <h3
     ref={ref}
     className={cn(
-      "text-2xl font-semibold leading-none tracking-tight",
+      "text-2xl font-semibold leading-none tracking-tight", // Keep original styling
       className
     )}
     {...props}
-  />
+  >
+    {children} {/* Render children directly */}
+   </h3>
 ))
 CardTitle.displayName = "CardTitle"
 
 const CardDescription = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div
+  HTMLParagraphElement, // Changed from HTMLDivElement to HTMLParagraphElement
+  React.HTMLAttributes<HTMLParagraphElement> // Use HTMLParagraphElement for props
+>(({ className, children, ...props }, ref) => (
+   <p // Use p element for semantic description
     ref={ref}
-    className={cn("text-sm text-muted-foreground", className)}
+    className={cn("text-sm text-muted-foreground", className)} // Keep original styling
     {...props}
-  />
+  >
+    {children} {/* Render children directly */}
+   </p>
 ))
 CardDescription.displayName = "CardDescription"
 
@@ -77,3 +83,6 @@ const CardFooter = React.forwardRef<
 CardFooter.displayName = "CardFooter"
 
 export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent }
+
+
+    
