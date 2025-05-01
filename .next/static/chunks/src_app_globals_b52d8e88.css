@@ -473,6 +473,10 @@ body {
   bottom: 0;
 }
 
+.bottom-4 {
+  bottom: 1rem;
+}
+
 .left-0 {
   left: 0;
 }
@@ -541,10 +545,6 @@ body {
   top: 50%;
 }
 
-.bottom-4 {
-  bottom: 1rem;
-}
-
 .z-10 {
   z-index: 10;
 }
@@ -589,15 +589,6 @@ body {
 .my-1 {
   margin-top: .25rem;
   margin-bottom: .25rem;
-}
-
-.my-2 {
-  margin-top: .5rem;
-  margin-bottom: .5rem;
-}
-
-.-mb-4 {
-  margin-bottom: -1rem;
 }
 
 .mb-1 {
@@ -681,6 +672,10 @@ body {
   height: 3rem;
 }
 
+.h-14 {
+  height: 3.5rem;
+}
+
 .h-16 {
   height: 4rem;
 }
@@ -749,10 +744,6 @@ body {
   height: 100svh;
 }
 
-.h-14 {
-  height: 3.5rem;
-}
-
 .max-h-96 {
   max-height: 24rem;
 }
@@ -793,6 +784,10 @@ body {
   width: 2.75rem;
 }
 
+.w-14 {
+  width: 3.5rem;
+}
+
 .w-16 {
   width: 4rem;
 }
@@ -825,6 +820,10 @@ body {
   width: 1.25rem;
 }
 
+.w-6 {
+  width: 1.5rem;
+}
+
 .w-7 {
   width: 1.75rem;
 }
@@ -851,14 +850,6 @@ body {
 
 .w-full {
   width: 100%;
-}
-
-.w-14 {
-  width: 3.5rem;
-}
-
-.w-6 {
-  width: 1.5rem;
 }
 
 .min-w-0 {
@@ -1324,10 +1315,6 @@ body {
   fill: currentColor;
 }
 
-.object-contain {
-  object-fit: contain;
-}
-
 .p-0 {
   padding: 0;
 }
@@ -1425,6 +1412,10 @@ body {
   padding-bottom: .5rem;
 }
 
+.pb-24 {
+  padding-bottom: 6rem;
+}
+
 .pb-3 {
   padding-bottom: .75rem;
 }
@@ -1463,10 +1454,6 @@ body {
 
 .pt-4 {
   padding-top: 1rem;
-}
-
-.pb-24 {
-  padding-bottom: 6rem;
 }
 
 .text-left {
@@ -1649,11 +1636,6 @@ body {
 .text-yellow-500 {
   --tw-text-opacity: 1;
   color: rgb(234 179 8 / var(--tw-text-opacity, 1));
-}
-
-.text-blue-500 {
-  --tw-text-opacity: 1;
-  color: rgb(59 130 246 / var(--tw-text-opacity, 1));
 }
 
 .underline-offset-4 {
