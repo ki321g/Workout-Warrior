@@ -13,12 +13,17 @@
     },
     "00ccf4af4458f65e89196a14e2f85476d92a27665a": {
       "workers": {
+        "app/analytics/page": {
+          "moduleId": "[project]/.next-internal/server/app/analytics/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/app/actions/loadWorkoutData.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false
+        },
         "app/page": {
           "moduleId": "[project]/.next-internal/server/app/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/app/actions/saveWorkoutData.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/src/app/actions/loadWorkoutData.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE2 => \"[project]/src/app/actions/fillMissedDays.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
           "async": false
         }
       },
       "layer": {
+        "app/analytics/page": "action-browser",
         "app/page": "action-browser"
       }
     },

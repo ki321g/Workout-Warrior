@@ -2,18 +2,21 @@
 'use client';
 
 import * as React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, Loader2, LineChart as LineChartIcon } from 'lucide-react'; // Renamed LineChart to avoid conflict
+import { ArrowLeft, Loader2, LineChart as LineChartIcon, BrainCircuit, AlertTriangle } from 'lucide-react'; // Renamed LineChart, Added BrainCircuit, AlertTriangle
 import { loadWorkoutData, type LoadedWorkoutData } from '@/app/actions/loadWorkoutData';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { format, parseISO, isValid } from 'date-fns';
 import { workoutPlan, type Exercise, type Superset, type WorkoutDayPlan } from '@/lib/workout-data'; // Import workout plan details
+import { suggestWeightChange, type SuggestWeightChangeInput, type SuggestWeightChangeOutput } from '@/ai/flows/suggest-weight-change-flow'; // Import the new AI flow
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'; // Import Alert components
 
-// Helper function to get exercise names mapped to their unique identifiers
-function getExerciseNameMap(): { [key: string]: string } {
-    const map: { [key: string]: string } = {};
+
+// Helper function to get exercise names and target reps mapped to their unique identifiers
+function getExerciseDetailsMap(): { [key: string]: { name: string; targetReps: string } } {
+    const map: { [key: string]: { name: string; targetReps: string } } = {};
 
     Object.values(workoutPlan).forEach(dayPlan => {
         if (!dayPlan) return;
@@ -24,13 +27,13 @@ function getExerciseNameMap(): { [key: string]: string } {
                 if ('exercises' in item) { // Superset
                     (item as Superset).exercises.forEach((ex, idx) => {
                         const uniqueId = `${baseIdentifier}_${idx}`;
-                        map[uniqueId] = ex.name;
+                        map[uniqueId] = { name: ex.name, targetReps: ex.reps };
                     });
                 } else { // Single exercise
                     const uniqueId = baseIdentifier;
-                     // Ensure item is an Exercise before accessing name
-                    if (item && typeof item === 'object' && 'name' in item) {
-                         map[uniqueId] = (item as Exercise).name;
+                    // Ensure item is an Exercise before accessing name and reps
+                    if (item && typeof item === 'object' && 'name' in item && 'reps' in item) {
+                         map[uniqueId] = { name: (item as Exercise).name, targetReps: (item as Exercise).reps };
                      } else {
                          console.warn(`Item with baseIdentifier ${baseIdentifier} is not a valid Exercise object.`);
                      }
@@ -42,10 +45,10 @@ function getExerciseNameMap(): { [key: string]: string } {
         processItems(dayPlan.eveningHome);
 
         if (dayPlan.optionalFinisher) {
-            map['optionalFinisher'] = dayPlan.optionalFinisher.name;
+            map['optionalFinisher'] = { name: dayPlan.optionalFinisher.name, targetReps: dayPlan.optionalFinisher.reps };
         }
     });
-    // console.log("Generated Exercise Name Map:", map); // For debugging
+    // console.log("Generated Exercise Details Map:", map); // For debugging
     return map;
 }
 
@@ -61,6 +64,7 @@ interface ExerciseDataPoint {
 interface ExerciseChartData {
     [uniqueId: string]: {
         exerciseName: string;
+        targetReps: string; // Store target reps string
         data: ExerciseDataPoint[];
     };
 }
@@ -69,7 +73,11 @@ export default function AnalyticsPage() {
     const [workoutData, setWorkoutData] = React.useState<LoadedWorkoutData | null>(null);
     const [isLoading, setIsLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
-    const exerciseNameMap = React.useMemo(() => getExerciseNameMap(), []); // Memoize the map
+    const exerciseDetailsMap = React.useMemo(() => getExerciseDetailsMap(), []); // Memoize the map
+    const [suggestions, setSuggestions] = React.useState<{ [uniqueId: string]: SuggestWeightChangeOutput | null }>({});
+    const [suggestionLoading, setSuggestionLoading] = React.useState<{ [uniqueId: string]: boolean }>({});
+    const [suggestionError, setSuggestionError] = React.useState<{ [uniqueId: string]: string | null }>({});
+
 
     React.useEffect(() => {
         const fetchData = async () => {
@@ -120,13 +128,13 @@ export default function AnalyticsPage() {
                         }
                     });
 
-                    // Only add if reps were actually performed (or 0 was explicitly entered, might want to filter > 0 later)
-                    // And if we have a name for this exercise
-                    const exerciseName = exerciseNameMap[uniqueId];
-                    if (exerciseName) { // Ensure we have a name mapping
+                    // Find exercise details from the map
+                    const details = exerciseDetailsMap[uniqueId];
+                    if (details) { // Ensure we have details mapping
                         if (!exerciseProgress[uniqueId]) {
                             exerciseProgress[uniqueId] = {
-                                exerciseName: exerciseName,
+                                exerciseName: details.name,
+                                targetReps: details.targetReps, // Store target reps
                                 data: [],
                             };
                         }
@@ -141,7 +149,7 @@ export default function AnalyticsPage() {
                              console.warn(`Invalid date string encountered: ${dateStr}`);
                          }
                     } else {
-                         // console.warn(`No name found for unique exercise ID: ${uniqueId}`); // Debugging missing names
+                         // console.warn(`No details found for unique exercise ID: ${uniqueId}`); // Debugging missing details
                      }
                 });
             };
@@ -151,13 +159,51 @@ export default function AnalyticsPage() {
         });
 
 
-         // Ensure each exercise's data is sorted by date (should be due to outer loop, but good practice)
+         // Ensure each exercise's data is sorted by date
          Object.values(exerciseProgress).forEach(exercise => {
              exercise.data.sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
          });
 
         return exerciseProgress;
     };
+
+    // --- AI Suggestion ---
+    const handleGetSuggestion = async (uniqueId: string) => {
+        const chartInfo = exerciseChartsData[uniqueId];
+        if (!chartInfo || chartInfo.data.length < 2) {
+            setSuggestionError({ ...suggestionError, [uniqueId]: "Not enough data for a suggestion." });
+            return;
+        }
+         // Check if all reps are zero
+         if (chartInfo.data.every(p => p.reps === 0)) {
+            setSuggestionError({ ...suggestionError, [uniqueId]: "No reps recorded for this exercise yet." });
+            return;
+        }
+
+
+        setSuggestionLoading({ ...suggestionLoading, [uniqueId]: true });
+        setSuggestionError({ ...suggestionError, [uniqueId]: null });
+        setSuggestions({ ...suggestions, [uniqueId]: null }); // Clear previous suggestion
+
+        try {
+            const input: SuggestWeightChangeInput = {
+                exerciseName: chartInfo.exerciseName,
+                targetReps: chartInfo.targetReps,
+                progressionData: chartInfo.data.map(d => ({ date: d.name, reps: d.reps })), // Use formatted date for readability in prompt if needed
+            };
+            console.log(`Requesting suggestion for ${uniqueId} with input:`, input); // Log input
+            const result = await suggestWeightChange(input);
+            console.log(`Received suggestion for ${uniqueId}:`, result); // Log output
+            setSuggestions({ ...suggestions, [uniqueId]: result });
+        } catch (err: any) {
+            console.error(`Error getting suggestion for ${uniqueId}:`, err);
+             const errorMessage = err.message || 'An unexpected error occurred while getting the suggestion.';
+             setSuggestionError({ ...suggestionError, [uniqueId]: errorMessage });
+        } finally {
+            setSuggestionLoading({ ...suggestionLoading, [uniqueId]: false });
+        }
+    };
+
 
     const exerciseChartsData = processDataForCharts();
     const exerciseIdsWithData = Object.keys(exerciseChartsData);
@@ -225,27 +271,38 @@ export default function AnalyticsPage() {
                     {exerciseIdsWithData.length > 0 ? (
                          exerciseIdsWithData.map((uniqueId) => {
                             const chartInfo = exerciseChartsData[uniqueId];
-                            // Only render chart if there are at least 2 data points for a line chart
-                            const canRenderLineChart = chartInfo.data.length >= 2;
-                             // Render bar chart if only 1 point, or line if >= 2
-                            const ChartComponent = canRenderLineChart ? LineChart : null; // Hide chart if only 1 point for line chart
+                            const suggestionData = suggestions[uniqueId];
+                             const isLoadingSuggestion = suggestionLoading[uniqueId];
+                             const suggestionErr = suggestionError[uniqueId];
+                             const canRenderLineChart = chartInfo.data.length >= 2; // Minimum data points for line chart
+                             const hasNonZeroData = chartInfo.data.some(d => d.reps > 0); // Check for actual reps
 
-                             // Check if there is any non-zero rep data
-                            const hasNonZeroData = chartInfo.data.some(d => d.reps > 0);
 
                              if (!hasNonZeroData) {
-                                 return null; // Skip rendering if all reps are 0
+                                 // Optionally render a card saying "no reps recorded" or just skip
+                                 // return (
+                                 //    <Card key={uniqueId} className="shadow-md opacity-50">
+                                 //        <CardHeader>
+                                 //            <CardTitle className="text-lg font-medium">{chartInfo.exerciseName}</CardTitle>
+                                 //            <CardDescription>Target: {chartInfo.targetReps}</CardDescription>
+                                 //        </CardHeader>
+                                 //        <CardContent>
+                                 //            <p className="text-muted-foreground text-sm text-center py-10">No reps recorded yet.</p>
+                                 //        </CardContent>
+                                 //    </Card>
+                                 // );
+                                 return null; // Skip rendering if no reps ever recorded
                              }
 
 
                             return (
-                                <Card key={uniqueId} className="shadow-md">
+                                <Card key={uniqueId} className="shadow-md flex flex-col">
                                     <CardHeader>
                                         <CardTitle className="text-lg font-medium">{chartInfo.exerciseName}</CardTitle>
-                                         <CardDescription>Total reps per session</CardDescription>
+                                         <CardDescription>Target: {chartInfo.targetReps}</CardDescription>
                                     </CardHeader>
-                                    <CardContent>
-                                        {ChartComponent ? (
+                                    <CardContent className="flex-grow">
+                                        {canRenderLineChart ? (
                                             <ResponsiveContainer width="100%" height={200}>
                                                 <LineChart data={chartInfo.data}>
                                                     <CartesianGrid strokeDasharray="3 3" />
@@ -265,9 +322,53 @@ export default function AnalyticsPage() {
                                                 </LineChart>
                                             </ResponsiveContainer>
                                          ) : (
-                                              <p className="text-muted-foreground text-sm">Not enough data points yet for a line chart (needs at least 2 recorded sessions with reps &gt; 0).</p>
+                                              <p className="text-muted-foreground text-sm text-center py-10">Not enough data points yet for a chart (needs at least 2 sessions with reps recorded).</p>
                                          )}
                                     </CardContent>
+                                     <CardFooter className="flex-col items-start gap-3 pt-4 border-t mt-auto">
+                                          {/* AI Suggestion Section */}
+                                         {canRenderLineChart && hasNonZeroData && (
+                                              <>
+                                                  <Button
+                                                      onClick={() => handleGetSuggestion(uniqueId)}
+                                                      disabled={isLoadingSuggestion}
+                                                      size="sm"
+                                                      variant="outline"
+                                                      className="w-full"
+                                                  >
+                                                     {isLoadingSuggestion ? (
+                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                     ) : (
+                                                        <BrainCircuit className="mr-2 h-4 w-4 text-primary" />
+                                                     )}
+                                                     Get AI Suggestion
+                                                 </Button>
+
+                                                 {isLoadingSuggestion && (
+                                                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                                        <Loader2 className="h-4 w-4 animate-spin" /> Analyzing...
+                                                     </p>
+                                                 )}
+
+                                                {suggestionErr && !isLoadingSuggestion && (
+                                                     <Alert variant="destructive" className="mt-2">
+                                                         <AlertTriangle className="h-4 w-4"/>
+                                                        <AlertTitle>Suggestion Error</AlertTitle>
+                                                         <AlertDescription className="text-xs">{suggestionErr}</AlertDescription>
+                                                     </Alert>
+                                                 )}
+
+                                                {suggestionData && !isLoadingSuggestion && !suggestionErr && (
+                                                     <Alert variant={suggestionData.suggestion === "Increase Weight" ? "success" : suggestionData.suggestion === "Decrease Weight" ? "destructive" : "default"} className="mt-2">
+                                                        <AlertTitle className="flex items-center gap-2 text-sm font-semibold">
+                                                             AI Suggestion: {suggestionData.suggestion}
+                                                         </AlertTitle>
+                                                         <AlertDescription className="text-xs mt-1">{suggestionData.explanation}</AlertDescription>
+                                                    </Alert>
+                                                 )}
+                                             </>
+                                          )}
+                                     </CardFooter>
                                 </Card>
                             );
                         })
@@ -276,21 +377,6 @@ export default function AnalyticsPage() {
                     )}
                 </div>
              </div>
-
-
-             {/* Placeholder for more advanced analytics */}
-            <Card className="mb-6 shadow-md border-dashed">
-                <CardHeader>
-                    <CardTitle className="text-xl font-semibold text-muted-foreground">More Analytics Coming Soon!</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-muted-foreground">Volume tracking and AI insights are under development.</p>
-                </CardContent>
-            </Card>
-
         </div>
     );
 }
-
-
-    
