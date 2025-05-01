@@ -570,21 +570,22 @@ function generateZeroRepsForDay(dayPlan) {
     const processWorkoutItems = (items, workoutType)=>{
         if (!items) return;
         Object.entries(items).forEach(([baseIdentifier, item])=>{
-            const rounds = item.rounds || 1;
-            if (item.exercises) {
+            const rounds = item.rounds || item.rounds || 1;
+            if ('exercises' in item) {
                 item.exercises.forEach((ex, idx)=>{
                     const uniqueId = `${baseIdentifier}_${idx}`;
                     const exRounds = ex.rounds || rounds;
                     zeroDayReps[workoutType][uniqueId] = {};
                     for(let i = 0; i < exRounds; i++){
-                        zeroDayReps[workoutType][uniqueId][i] = 0;
+                        zeroDayReps[workoutType][uniqueId][i] = 0; // Use 0 for missed days
                     }
                 });
             } else {
-                zeroDayReps[workoutType][baseIdentifier] = {};
+                const uniqueId = baseIdentifier;
+                zeroDayReps[workoutType][uniqueId] = {};
                 const exRounds = item.rounds || 1;
                 for(let i = 0; i < exRounds; i++){
-                    zeroDayReps[workoutType][baseIdentifier][i] = 0;
+                    zeroDayReps[workoutType][uniqueId][i] = 0; // Use 0 for missed days
                 }
             }
         });
@@ -592,10 +593,11 @@ function generateZeroRepsForDay(dayPlan) {
     processWorkoutItems(dayPlan.morningGym, 'morningGym');
     processWorkoutItems(dayPlan.eveningHome, 'eveningHome');
     if (dayPlan.optionalFinisher) {
+        const uniqueId = 'optionalFinisher';
         const finisherRounds = dayPlan.optionalFinisher.rounds || 1;
-        zeroDayReps.morningGym['optionalFinisher'] = {};
+        zeroDayReps.morningGym[uniqueId] = {};
         for(let i = 0; i < finisherRounds; i++){
-            zeroDayReps.morningGym['optionalFinisher'][i] = 0;
+            zeroDayReps.morningGym[uniqueId][i] = 0; // Use 0 for missed days
         }
     }
     return zeroDayReps;
@@ -616,7 +618,7 @@ async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ fillMissedDays(lastReco
     let filledAny = false;
     for(let i = 1; i < daysDiff; i++){
         const missedDate = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$addDays$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["addDays"])(startDate, i); // Iterate from the day *after* the last record up to the day *before* today
-        const missedDateString = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(missedDate, 'yyyy-MM-dd');
+        const missedDateString = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(missedDate, 'yyyy-MM-dd'); // Format the date here
         const missedDayIndex = ((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getDay$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDay"])(missedDate) + 6) % 7; // 0 = Monday, 6 = Sunday
         const missedDayName = daysOfWeek[missedDayIndex];
         const dayPlan = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$workout$2d$data$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["workoutPlan"][missedDayName];
@@ -628,8 +630,8 @@ async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ fillMissedDays(lastReco
         // Generate a rep state with all reps set to 0
         const zeroReps = generateZeroRepsForDay(dayPlan);
         console.log(`Saving zero reps for missed day: ${missedDateString} (${missedDayName})`);
-        // Save using the actual missed date
-        await (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$app$2f$actions$2f$saveWorkoutData$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["saveWorkoutData"])(missedDate, missedDayName, zeroReps);
+        // Save using the formatted missed date string
+        await (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$app$2f$actions$2f$saveWorkoutData$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["saveWorkoutData"])(missedDateString, missedDayName, zeroReps);
         filledAny = true;
     }
     if (filledAny) {

@@ -4,7 +4,7 @@
 import { differenceInDays, format, parseISO, startOfDay, subDays, getDay, addDays } from 'date-fns';
 import { saveWorkoutData } from './saveWorkoutData';
 import { loadWorkoutData } from './loadWorkoutData';
-import { workoutPlan, type WorkoutDayPlan } from '@/lib/workout-data';
+import { workoutPlan, type WorkoutDayPlan, Exercise, Superset } from '@/lib/workout-data';
 import type { RepsState } from '@/components/day-workout';
 
 const daysOfWeek = [
@@ -23,24 +23,25 @@ function generateZeroRepsForDay(dayPlan: WorkoutDayPlan | undefined): RepsState[
     const zeroDayReps: RepsState[string] = { morningGym: {}, eveningHome: {} };
     if (!dayPlan) return zeroDayReps;
 
-    const processWorkoutItems = (items: { [key: string]: any } | undefined, workoutType: 'morningGym' | 'eveningHome') => {
+    const processWorkoutItems = (items: { [key: string]: Exercise | Superset } | undefined, workoutType: 'morningGym' | 'eveningHome') => {
         if (!items) return;
         Object.entries(items).forEach(([baseIdentifier, item]) => {
-            const rounds = item.rounds || 1;
-            if (item.exercises) { // Superset
-                item.exercises.forEach((ex: any, idx: number) => {
+            const rounds = (item as Superset).rounds || (item as Exercise).rounds || 1;
+            if ('exercises' in item) { // Superset
+                (item as Superset).exercises.forEach((ex, idx) => {
                     const uniqueId = `${baseIdentifier}_${idx}`;
                     const exRounds = ex.rounds || rounds;
                     zeroDayReps[workoutType]![uniqueId] = {};
                     for (let i = 0; i < exRounds; i++) {
-                        zeroDayReps[workoutType]![uniqueId]![i] = 0;
+                        zeroDayReps[workoutType]![uniqueId]![i] = 0; // Use 0 for missed days
                     }
                 });
             } else { // Single exercise
-                zeroDayReps[workoutType]![baseIdentifier] = {};
-                 const exRounds = item.rounds || 1;
+                const uniqueId = baseIdentifier;
+                zeroDayReps[workoutType]![uniqueId] = {};
+                const exRounds = (item as Exercise).rounds || 1;
                 for (let i = 0; i < exRounds; i++) {
-                    zeroDayReps[workoutType]![baseIdentifier]![i] = 0;
+                    zeroDayReps[workoutType]![uniqueId]![i] = 0; // Use 0 for missed days
                 }
             }
         });
@@ -49,10 +50,11 @@ function generateZeroRepsForDay(dayPlan: WorkoutDayPlan | undefined): RepsState[
     processWorkoutItems(dayPlan.morningGym, 'morningGym');
     processWorkoutItems(dayPlan.eveningHome, 'eveningHome');
     if (dayPlan.optionalFinisher) {
+         const uniqueId = 'optionalFinisher';
         const finisherRounds = dayPlan.optionalFinisher.rounds || 1;
-        zeroDayReps.morningGym!['optionalFinisher'] = {};
+        zeroDayReps.morningGym![uniqueId] = {};
          for (let i = 0; i < finisherRounds; i++) {
-            zeroDayReps.morningGym!['optionalFinisher']![i] = 0;
+            zeroDayReps.morningGym![uniqueId]![i] = 0; // Use 0 for missed days
         }
     }
 
@@ -80,7 +82,7 @@ export async function fillMissedDays(lastRecordedDate: Date | null, today: Date)
 
   for (let i = 1; i < daysDiff; i++) {
     const missedDate = addDays(startDate, i); // Iterate from the day *after* the last record up to the day *before* today
-    const missedDateString = format(missedDate, 'yyyy-MM-dd');
+    const missedDateString = format(missedDate, 'yyyy-MM-dd'); // Format the date here
     const missedDayIndex = (getDay(missedDate) + 6) % 7; // 0 = Monday, 6 = Sunday
     const missedDayName = daysOfWeek[missedDayIndex];
     const dayPlan = workoutPlan[missedDayName as keyof typeof workoutPlan];
@@ -95,8 +97,8 @@ export async function fillMissedDays(lastRecordedDate: Date | null, today: Date)
     const zeroReps = generateZeroRepsForDay(dayPlan);
 
     console.log(`Saving zero reps for missed day: ${missedDateString} (${missedDayName})`);
-    // Save using the actual missed date
-    await saveWorkoutData(missedDate, missedDayName, zeroReps);
+    // Save using the formatted missed date string
+    await saveWorkoutData(missedDateString, missedDayName, zeroReps);
     filledAny = true;
   }
 
@@ -107,5 +109,3 @@ export async function fillMissedDays(lastRecordedDate: Date | null, today: Date)
   }
   return filledAny;
 }
-
-    
